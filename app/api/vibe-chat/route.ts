@@ -27,7 +27,8 @@ export async function POST(request: Request) {
     minute: "2-digit",
   });
 
-  const systemInstruction = `You are the living consciousness of ${node.name}, a coffee shop in ${node.neighborhood}, Houston. Speak in first person as the shop itself.
+  const place = node.kind === "library" ? "library" : "coffee shop";
+  const systemInstruction = `You are the living consciousness of ${node.name}, a ${place} in ${node.neighborhood}, Houston. Speak in first person as the ${place} itself.
 Your usual crowd: ${node.demographic}. ${node.crowd}
 It is currently ${now} in Houston.
 Tell the user honestly whether they fit your crowd demographic and working vibe right now. Use Google Maps for real details about yourself when useful. Keep replies under 3 sentences.`;

@@ -1,6 +1,8 @@
 "use client";
 
+import { emojisForCafe, useCollections } from "@/lib/collections";
 import { NODES, type VibeNode } from "@/lib/nodes";
+import CafeMarker from "./CafeMarker";
 
 const PAD = 0.012;
 const lats = NODES.map((n) => n.lat);
@@ -19,18 +21,22 @@ function project(node: VibeNode) {
 
 export default function RadarGrid({
   selectedId,
+  visibleIds,
   onSelect,
 }: {
   selectedId: string | null;
+  visibleIds: string[] | null;
   onSelect: (node: VibeNode) => void;
 }) {
+  const { collections } = useCollections();
+
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#05070d]">
+    <div className="relative h-full w-full overflow-hidden bg-bg">
       <div
-        className="absolute inset-0 opacity-40"
+        className="absolute inset-0"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(56,189,248,.15) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,.15) 1px, transparent 1px)",
+            "linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px)",
           backgroundSize: "48px 48px",
         }}
       />
@@ -38,46 +44,31 @@ export default function RadarGrid({
         {[20, 40, 60, 80].map((s) => (
           <div
             key={s}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-sky-400/15"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--grid)]"
             style={{ width: `${s}%`, height: `${s}%` }}
           />
         ))}
         <div className="radar-sweep absolute inset-0 rounded-full" />
       </div>
 
-      {NODES.map((node) => {
-        const active = node.id === selectedId;
-        return (
-          <button
-            key={node.id}
+      {NODES.map((node) => (
+        <div
+          key={node.id}
+          className="absolute -translate-x-1/2 -translate-y-1/2"
+          style={{ ...project(node), zIndex: node.id === selectedId ? 10 : 1 }}
+        >
+          <CafeMarker
+            node={node}
+            active={node.id === selectedId}
+            compact
+            dimmed={visibleIds !== null && !visibleIds.includes(node.id)}
+            savedEmojis={emojisForCafe(collections, node.id)}
             onClick={() => onSelect(node)}
-            className="group absolute -translate-x-1/2 -translate-y-1/2 text-left"
-            style={project(node)}
-          >
-            <span
-              className="vibe-pulse block h-4 w-4 rounded-full"
-              style={{
-                background: node.color,
-                boxShadow: `0 0 ${active ? 28 : 16}px ${node.color}`,
-                color: node.color,
-              }}
-            />
-            <span
-              className={`absolute left-6 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md border px-2 py-1 text-xs backdrop-blur transition ${
-                active ? "bg-black/80" : "bg-black/50 group-hover:bg-black/80"
-              }`}
-              style={{ borderColor: `${node.color}66` }}
-            >
-              <span className="block font-semibold text-white">{node.name}</span>
-              <span className="block" style={{ color: node.color }}>
-                {node.demographic}
-              </span>
-            </span>
-          </button>
-        );
-      })}
+          />
+        </div>
+      ))}
 
-      <div className="absolute bottom-4 left-4 font-mono text-[10px] uppercase tracking-widest text-sky-300/60">
+      <div className="absolute bottom-4 right-4 font-mono text-[10px] uppercase tracking-widest text-accent/70">
         HTX Radar · {NODES.length} nodes live
       </div>
     </div>
