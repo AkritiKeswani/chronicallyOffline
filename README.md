@@ -34,25 +34,25 @@ Houston is huge and spread out, and it's surprisingly hard to find places that h
 
 Every spot is matched to its Google Places ID, so its location and listing are the real ones.
 
+## Community (live)
+
+Sign in with Google to make the map better for the next person:
+
+- **Pulses**: one tap for what you see right now (🔌 outlets open, 🔊 loud, 💻 laptops everywhere…). Live for 3 hours.
+- **Check-ins**: rate Wi-Fi, outlets, noise and parking, and leave a vibe note. The **Workability Index** on each spot comes only from these.
+- **"I'm working here now"**: opt-in and auto-expires after 3 hours. Everyone sees head-counts; your name only shows if you choose, and only to signed-in users.
+- **Events**: submit a co-working night or meetup; approved events make the spot pulse gold that day.
+- **Drop a spot**: name + a two-sentence take. Google Maps finds the real location, Gemini drafts the profile, and it appears as "Curated by @you" once approved.
+- **Spots remember**: recent pulses, check-ins and events feed into each spot's chat, and your "About me" tailors its answers.
+
 ## Roadmap
 
-### Next up: community check-ins
-
-The app should get better the more people use it. If you go to Agora and it's "meh, Wi-Fi kept dropping," the next person should know.
-
-- **Check in at a spot.** Rate Wi-Fi (1–5), noise (silent, chatter, loud) and how busy it was, and leave an optional one-liner.
-- **Live community stats** on every spot, e.g. `📶 4.2 · 12 check-ins · mostly chatter · last 2h ago`, plus the latest notes. Wi-Fi ratings come only from real check-ins.
-- **Spots remember what people say.** A spot's chat factors in recent check-ins, so if people report bad Wi-Fi tonight, it'll admit it.
-- **Smarter near-me picks** using community Wi-Fi and noise data.
-- **Sign in with Google** to check in, with one check-in per spot every few hours to keep things honest. Check-ins will be stored in Supabase.
-
-### Also planned
-
-- More spots across Westheimer, River Oaks and Montrose, plus Haraz Pearland
-- Near-me results beyond the curated list, clearly marked as uncurated
-- Automatic re-verification of every spot against Google Places
-- Saved lists that sync across devices
-- Model choice via OpenRouter (note: Google Maps grounding is Gemini-only, so other models would get Places details passed in directly)
+- More hand-picked spots (Black Hole, Campesino, Boomtown, Slowpokes, Day 6, Antidote, Switchyards, Tout Suite, Tenfold, BlendIn)
+- Vibe-match bar: describe yourself and what you need; the map highlights your top matches
+- Filters: late night, parking, neighborhood
+- Time-of-day vibe notes per spot
+- Friends, so "who's here" can be friends-only
+- Model choice via OpenRouter (Google Maps grounding is Gemini-only, so other models would get Places details passed in directly)
 
 ## Getting started
 
@@ -68,10 +68,11 @@ Open [http://localhost:3000](http://localhost:3000).
 | --- | --- |
 | `GEMINI_API_KEY` | Spot chat and near-me recommendations (Google AI Studio; billing must be enabled for Maps grounding; uses `gemini-3.8-flash`) |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | The map (Maps JavaScript API). Restrict it to your domain before deploying. |
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Community features (Supabase). Use the publishable key, never the secret key. Run `supabase/migrations/0001_community.sql` in the SQL Editor and enable Google sign-in. |
 | `GOOGLE_MAPS_SERVER_KEY` | Optional server-only key for Places lookups in near-me search. Falls back to the public key. |
 
-Without a Maps key, the app opens in Radar Grid mode.
+Without a Maps key, the app opens in Radar Grid mode. Without Supabase, community features are hidden and everything else works.
 
 ## Tech
 
-Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · `@vis.gl/react-google-maps` · Google Places API · `@google/genai` (Gemini with Google Maps grounding)
+Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · `@vis.gl/react-google-maps` · Google Places API · `@google/genai` (Gemini with Google Maps grounding) · Supabase (auth, Postgres, realtime)

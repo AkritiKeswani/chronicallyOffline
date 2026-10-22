@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Loader2, MapPin, Send, Star, X } from "lucide-react";
+import { ExternalLink, Loader2, MapPin, Send, Star, Users, X } from "lucide-react";
+import { getPersona } from "@/lib/auth";
+import { useCommunity } from "@/lib/community";
 import { googleMapsUrl, type VibeNode } from "@/lib/nodes";
 import { readable } from "@/lib/theme";
+import CommunityPanel, { WorkabilitySummary } from "./CommunityPanel";
 import SaveMenu from "./SaveMenu";
 
 type Message = {
@@ -22,11 +25,17 @@ export default function ChatDrawer({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
+  const [tab, setTab] = useState<"chat" | "community">("chat");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const community = useCommunity();
+  const here = community.here[node.id] ?? 0;
+  const events = community.eventsToday[node.id] ?? [];
 
+  // Scroll only the message list (scrollIntoView also scrolls the page).
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [messages, loading, tab]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -45,6 +54,7 @@ export default function ChatDrawer({
         body: JSON.stringify({
           nodeId: node.id,
           messages: next.map(({ role, text }) => ({ role, text })),
+          persona: getPersona(),
         }),
       });
       const data = await res.json();
@@ -102,6 +112,9 @@ export default function ChatDrawer({
               )}
             </p>
           )}
+          {node.curatedBy && (
+            <p className="mt-1 text-[11px] text-muted">Curated by {node.curatedBy}</p>
+          )}
           <div className="mt-2 flex flex-wrap gap-1.5">
             {node.tags.map((t) => (
               <span
@@ -125,7 +138,54 @@ export default function ChatDrawer({
         </div>
       </header>
 
-      <div className="flex-1 space-y-3 overflow-y-auto p-5">
+      {community.ready && (
+        <div className="space-y-2 border-b border-line px-5 py-3">
+          {events.map((e) => (
+            <a
+              key={e.id}
+              href={e.url ?? undefined}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 rounded-lg border border-amber-400/50 bg-amber-400/10 px-2.5 py-1.5 text-xs text-fg"
+            >
+              <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+              <span className="flex-1">
+                <b>Today {new Date(e.starts_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</b> · {e.title}
+              </span>
+            </a>
+          ))}
+          <WorkabilitySummary spotId={node.id} />
+          {here > 0 && (
+            <p className="flex items-center gap-1.5 text-xs text-muted">
+              <Users size={12} /> {here} {here === 1 ? "person" : "people"} working here now
+            </p>
+          )}
+        </div>
+      )}
+
+      {community.ready && (
+        <div className="flex gap-1 border-b border-line px-5 pt-2 text-xs">
+          {(["chat", "community"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`-mb-px border-b-2 px-2 pb-2 font-medium capitalize ${
+                tab === t ? "border-fg text-fg" : "border-transparent text-muted hover:text-fg"
+              }`}
+            >
+              {t === "chat" ? `Chat with ${node.name.split(" ")[0]}` : "Community"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === "community" ? (
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-5">
+          <CommunityPanel node={node} />
+        </div>
+      ) : (
+      <>
+      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-5">
         {messages.length === 0 && (
           <p className="text-sm text-muted">
             Ask {node.name} if you fit the vibe — e.g. &ldquo;I&rsquo;m a 27-year-old engineer
@@ -164,7 +224,6 @@ export default function ChatDrawer({
             <Loader2 size={14} className="animate-spin" /> {node.name} is thinking…
           </div>
         )}
-        <div ref={endRef} />
       </div>
 
       <form onSubmit={send} className="flex gap-2 border-t border-line p-4">
@@ -183,6 +242,8 @@ export default function ChatDrawer({
           <Send size={16} />
         </button>
       </form>
+      </>
+      )}
     </aside>
   );
 }

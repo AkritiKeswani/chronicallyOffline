@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { milesBetween, type Origin } from "@/lib/geo";
-import { NODES, type VibeNode } from "@/lib/nodes";
+import type { VibeNode } from "@/lib/nodes";
+import { getAllSpots } from "@/lib/spots-server";
 import { nearbySpots } from "@/lib/places";
 
 // Picking among many spots is the "think harder" job, so it gets the bigger
@@ -46,7 +47,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "No Google Maps key configured" }, { status: 500 });
   }
 
-  const { query, coords, radiusMi, vibe } = (await request.json()) as {
+  const { query, coords, radiusMi, vibe, persona } = (await request.json()) as {
+    persona?: string;
     query?: string;
     /** From the browser's geolocation, instead of a typed query. */
     coords?: { lat: number; lng: number };
@@ -72,7 +74,10 @@ export async function POST(request: Request) {
   }
 
   const where = hasCoords ? "my current location" : origin.name;
-  const results = NODES.map((n) => ({ id: n.id, miles: milesBetween(origin, n) }))
+  const spots = await getAllSpots();
+  const vettedIds = new Set(spots.map((s) => s.placeId));
+  const results = spots
+    .map((n) => ({ id: n.id, miles: milesBetween(origin, n) }))
     .filter((r) => r.miles <= radiusMi)
     .sort((a, b) => a.miles - b.miles);
 
@@ -81,7 +86,7 @@ export async function POST(request: Request) {
   try {
     others = (await nearbySpots(origin.lat, origin.lng, radiusMi))
       .map((node) => ({ node, miles: milesBetween(origin, node) }))
-      .filter((o) => o.miles <= radiusMi)
+      .filter((o) => o.miles <= radiusMi && !vettedIds.has(o.node.placeId))
       .sort((a, b) => a.miles - b.miles);
   } catch (err) {
     console.error("near: nearby places error", err);
@@ -91,7 +96,7 @@ export async function POST(request: Request) {
   if (vibe?.trim() && results.length + others.length > 0 && process.env.GEMINI_API_KEY) {
     const options = [
       ...results.map((r) => {
-        const n = NODES.find((x) => x.id === r.id)!;
+        const n = spots.find((x) => x.id === r.id)!;
         return `- ${n.name} (${r.miles.toFixed(1)} mi, ${n.kind}, vetted): ${n.demographic}. ${n.crowd}`;
       }),
       ...others.slice(0, 8).map(
@@ -102,7 +107,7 @@ export async function POST(request: Request) {
     try {
       const response = await ai.models.generateContent({
         model: GEMINI_MODEL,
-        contents: `I'm near ${where} in Houston and I'm looking for: "${vibe.trim()}".\nOptions within ${radiusMi} miles:\n${options}`,
+        contents: `I'm near ${where} in Houston and I'm looking for: "${vibe.trim()}".${persona?.trim() ? `\nAbout me: ${persona.trim().slice(0, 200)}` : ""}\nOptions within ${radiusMi} miles:\n${options}`,
         config: {
           systemInstruction:
             "You are a Houston local recommending where to work or hang out. Pick the single best option from the list (only from the list) and say why in at most 2 short sentences. Prefer vetted spots when they fit; if you pick a not-vetted one, say it is not vetted yet. Be honest if none fit well. Plain text, no markdown.",
@@ -115,5 +120,6 @@ export async function POST(request: Request) {
     }
   }
 
-  return Response.json({ origin, results, others, pick });
+  const resultSpots = results.map((r) => spots.find((s) => s.id === r.id)!);
+  return Response.json({ origin, results, resultSpots, others, pick });
 }

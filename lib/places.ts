@@ -179,3 +179,46 @@ export function placeById(placeId: string): Promise<VibeNode> {
     ),
   );
 }
+
+const HOUSTON = { latitude: 29.7604, longitude: -95.3698 };
+
+export type FoundPlace = {
+  placeId: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  kind: "cafe" | "library";
+  /** Primary type is a cafe/coffee shop/tea house/library (vs. e.g. a restaurant). */
+  isWorkSpot: boolean;
+  open: boolean;
+};
+
+/** Resolve free text ("black hole coffee montrose") to one real Houston-area place. */
+export async function findPlace(query: string): Promise<FoundPlace | null> {
+  const data = await placesFetch(
+    "places:searchText",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        textQuery: query,
+        pageSize: 1,
+        locationBias: { circle: { center: HOUSTON, radius: 50000 } },
+      }),
+    },
+    FIELDS.map((f) => `places.${f}`).join(","),
+  );
+  const p = (data.places as ApiPlace[] | undefined)?.[0];
+  if (!p) return null;
+  const node = toNode(p);
+  return {
+    placeId: p.id,
+    name: node.name,
+    address: node.address,
+    lat: node.lat,
+    lng: node.lng,
+    kind: node.kind,
+    isWorkSpot: ALLOWED_PRIMARY.has(p.primaryType ?? "") || p.primaryType === "bakery",
+    open: p.businessStatus === "OPERATIONAL",
+  };
+}

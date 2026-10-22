@@ -18,9 +18,11 @@ export type VibeNode = {
   color: string;
   rating?: number;
   ratingCount?: number;
+  /** Credit for community-submitted spots, e.g. "@sarah". */
+  curatedBy?: string;
 };
 
-/** Vetted spots live in data/spots.json (add new ones via `npm run import:candidates`). */
+/** Hand-picked spots live in data/spots.json; community picks come from Supabase. */
 export const NODES: VibeNode[] = (spots as Omit<VibeNode, "vetted">[]).map((s) => ({
   ...s,
   vetted: true,

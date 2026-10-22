@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { Loader2, LocateFixed, Navigation, Sparkles, X } from "lucide-react";
 import type { Origin } from "@/lib/geo";
-import { NODES, type VibeNode } from "@/lib/nodes";
+import { getPersona } from "@/lib/auth";
+import type { VibeNode } from "@/lib/nodes";
 
 export type NearbyResult = {
   origin: Origin;
   radiusMi: number;
   results: { id: string; miles: number }[];
+  /** Spot objects for `results`, same order (includes community picks). */
+  resultSpots: VibeNode[];
   /** Unvetted Google spots in range. */
   others: { node: VibeNode; miles: number }[];
   pick: string | null;
@@ -67,7 +70,7 @@ export default function NearbySearch({
       const res = await fetch("/api/near", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...where, radiusMi, vibe }),
+        body: JSON.stringify({ ...where, radiusMi, vibe, persona: getPersona() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Search failed");
@@ -177,8 +180,8 @@ export default function NearbySearch({
             <p className="mt-2 text-[11px] text-muted">No vetted spots in range yet.</p>
           ) : (
             <ul className="mt-2 max-h-40 space-y-0.5 overflow-y-auto">
-              {nearby.results.map((r) => {
-                const n = NODES.find((x) => x.id === r.id)!;
+              {nearby.results.map((r, i) => {
+                const n = nearby.resultSpots[i];
                 return (
                   <li key={r.id}>
                     <button

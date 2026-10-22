@@ -1,22 +1,23 @@
 "use client";
 
 import { emojisForCafe, useCollections } from "@/lib/collections";
-import { NODES, type VibeNode } from "@/lib/nodes";
+import { useAllSpots, useCommunity } from "@/lib/community";
+import type { VibeNode } from "@/lib/nodes";
 import CafeMarker from "./CafeMarker";
 
 const PAD = 0.012;
-const lats = NODES.map((n) => n.lat);
-const lngs = NODES.map((n) => n.lng);
-const minLat = Math.min(...lats) - PAD;
-const maxLat = Math.max(...lats) + PAD;
-const minLng = Math.min(...lngs) - PAD;
-const maxLng = Math.max(...lngs) + PAD;
 
-function project(node: VibeNode) {
-  return {
+function projector(spots: VibeNode[]) {
+  const lats = spots.map((n) => n.lat);
+  const lngs = spots.map((n) => n.lng);
+  const minLat = Math.min(...lats) - PAD;
+  const maxLat = Math.max(...lats) + PAD;
+  const minLng = Math.min(...lngs) - PAD;
+  const maxLng = Math.max(...lngs) + PAD;
+  return (node: VibeNode) => ({
     left: `${((node.lng - minLng) / (maxLng - minLng)) * 100}%`,
     top: `${((maxLat - node.lat) / (maxLat - minLat)) * 100}%`,
-  };
+  });
 }
 
 export default function RadarGrid({
@@ -29,6 +30,9 @@ export default function RadarGrid({
   onSelect: (node: VibeNode) => void;
 }) {
   const { collections } = useCollections();
+  const { here, eventsToday } = useCommunity();
+  const spots = useAllSpots();
+  const project = projector(spots);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-bg">
@@ -51,7 +55,7 @@ export default function RadarGrid({
         <div className="radar-sweep absolute inset-0 rounded-full" />
       </div>
 
-      {NODES.map((node) => (
+      {spots.map((node) => (
         <div
           key={node.id}
           className="absolute -translate-x-1/2 -translate-y-1/2"
@@ -63,13 +67,15 @@ export default function RadarGrid({
             compact
             dimmed={visibleIds !== null && !visibleIds.includes(node.id)}
             savedEmojis={emojisForCafe(collections, node.id)}
+            hereCount={here[node.id] ?? 0}
+            eventToday={(eventsToday[node.id]?.length ?? 0) > 0}
             onClick={() => onSelect(node)}
           />
         </div>
       ))}
 
       <div className="absolute bottom-4 right-4 font-mono text-[10px] uppercase tracking-widest text-accent/70">
-        HTX Radar · {NODES.length} nodes live
+        HTX Radar · {spots.length} nodes live
       </div>
     </div>
   );

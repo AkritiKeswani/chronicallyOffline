@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { APIProvider, Circle, Map, useMap } from "@vis.gl/react-google-maps";
 import { emojisForCafe, useCollections } from "@/lib/collections";
 import { METERS_PER_MILE } from "@/lib/geo";
-import { NODES, type VibeNode } from "@/lib/nodes";
+import { useAllSpots, useCommunity } from "@/lib/community";
+import type { VibeNode } from "@/lib/nodes";
 import { useTheme } from "@/lib/theme";
 import CafeMarker from "./CafeMarker";
 import HtmlMarker from "./HtmlMarker";
@@ -292,14 +293,16 @@ function Markers({
 }) {
   const map = useMap();
   const { collections } = useCollections();
+  const { here, eventsToday } = useCommunity();
+  const spots = useAllSpots();
   const selectedId = selected?.id ?? null;
 
   const clusters = useMemo(
     () =>
       zoom <= CLUSTER_MAX_ZOOM
-        ? cluster(NODES, zoom)
-        : NODES.map((n) => ({ key: n.id, lat: n.lat, lng: n.lng, nodes: [n] })),
-    [zoom],
+        ? cluster(spots, zoom)
+        : spots.map((n) => ({ key: n.id, lat: n.lat, lng: n.lng, nodes: [n] })),
+    [zoom, spots],
   );
 
   // Fly to whatever gets selected (marker click, saved list, etc).
@@ -356,6 +359,8 @@ function Markers({
           compact={zoom < LABEL_ZOOM}
           dimmed={visibleIds !== null && !visibleIds.includes(node.id)}
           savedEmojis={emojisForCafe(collections, node.id)}
+          hereCount={here[node.id] ?? 0}
+          eventToday={(eventsToday[node.id]?.length ?? 0) > 0}
           onClick={() => onSelect(node)}
         />
       </HtmlMarker>

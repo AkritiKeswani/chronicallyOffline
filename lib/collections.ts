@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { findCommunitySpot } from "@/lib/community";
 import { NODES, type VibeNode } from "@/lib/nodes";
 
 export type Collection = {
@@ -117,7 +118,7 @@ export function rememberPlace(node: VibeNode) {
 
 /** Resolve a saved id to a spot: vetted from NODES, unvetted from the snapshot. */
 export function resolveSpot(id: string): VibeNode | undefined {
-  return NODES.find((n) => n.id === id) ?? readPlaces()[id];
+  return NODES.find((n) => n.id === id) ?? findCommunitySpot(id) ?? readPlaces()[id];
 }
 
 export function emojisForCafe(collections: Collection[], cafeId: string) {

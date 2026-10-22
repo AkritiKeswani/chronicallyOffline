@@ -6,7 +6,9 @@ import { useCollections } from "@/lib/collections";
 import type { VibeNode } from "@/lib/nodes";
 import { useTheme, type ThemePref } from "@/lib/theme";
 import ChatDrawer from "./ChatDrawer";
+import AccountMenu from "./AccountMenu";
 import CollectionsPanel from "./CollectionsPanel";
+import DropSpot from "./DropSpot";
 import NearbySearch, { type NearbyResult } from "./NearbySearch";
 import RadarGrid from "./RadarGrid";
 import VibeMap from "./VibeMap";
@@ -54,6 +56,10 @@ export default function HoustonVibeApp() {
         </div>
 
         <div className="pointer-events-auto flex flex-col items-end gap-2 sm:flex-row sm:items-start">
+        <div className="flex items-center gap-2">
+          <DropSpot />
+          <AccountMenu />
+        </div>
         <div className="flex rounded-xl border border-line bg-surface p-1 shadow-sm backdrop-blur">
           {THEME_OPTIONS.map(({ value, label, Icon }) => (
             <button

@@ -12,6 +12,8 @@ export default function CafeMarker({
   dimmed,
   compact,
   savedEmojis,
+  hereCount = 0,
+  eventToday = false,
   onClick,
 }: {
   node: VibeNode;
@@ -20,6 +22,10 @@ export default function CafeMarker({
   /** Small dot with hover-only label, for zoomed-out views. */
   compact: boolean;
   savedEmojis: string[];
+  /** People who said they're working here now. */
+  hereCount?: number;
+  /** An approved event is happening here today. */
+  eventToday?: boolean;
   onClick: () => void;
 }) {
   const small = compact && !active;
@@ -34,6 +40,9 @@ export default function CafeMarker({
       aria-label={`Open ${node.name}`}
     >
       <span className={`relative flex items-center justify-center transition-transform ${small ? "scale-[0.6]" : ""}`}>
+        {eventToday && (
+          <span className="absolute -inset-3 animate-ping rounded-full border-2 border-amber-400" />
+        )}
         <span className="cafe-ripple absolute -inset-1 rounded-full border-2 border-current" />
         <span className="cafe-ripple cafe-ripple-delay absolute -inset-1 rounded-full border-2 border-current" />
         <span
@@ -53,6 +62,14 @@ export default function CafeMarker({
             <Coffee size={17} strokeWidth={2.5} />
           )}
         </span>
+        {hereCount > 0 && (
+          <span
+            className="absolute -bottom-2 -right-3 rounded-full border border-white bg-emerald-500 px-1 text-[10px] font-semibold leading-4 text-white"
+            title={`${hereCount} working here now`}
+          >
+            👥{hereCount}
+          </span>
+        )}
         {savedEmojis.length > 0 && (
           <span className="absolute -right-3 -top-3 rounded-full border border-line-strong bg-solid px-1 text-[10px] leading-4">
             {savedEmojis.slice(0, 3).join("")}

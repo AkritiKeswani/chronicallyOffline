@@ -1,4 +1,5 @@
 import { nearbySpots } from "@/lib/places";
+import { getAllSpots } from "@/lib/spots-server";
 
 // GET /api/places?lat=..&lng=..&radiusMi=..  → unvetted Google spots near a point
 export async function GET(request: Request) {
@@ -12,7 +13,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    return Response.json({ spots: await nearbySpots(lat, lng, radiusMi) });
+    const [spots, vetted] = await Promise.all([nearbySpots(lat, lng, radiusMi), getAllSpots()]);
+    const vettedIds = new Set(vetted.map((v) => v.placeId));
+    return Response.json({ spots: spots.filter((s) => !vettedIds.has(s.placeId)) });
   } catch (err) {
     console.error("places error", err);
     return Response.json({ error: "Google Places lookup failed" }, { status: 502 });
