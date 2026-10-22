@@ -7,10 +7,13 @@ import type { VibeNode } from "@/lib/nodes";
 export default function UnvettedMarker({
   node,
   active,
+  rank,
   onClick,
 }: {
   node: VibeNode;
   active: boolean;
+  /** 1 or 2 when this is a top match for the user's search. */
+  rank?: number;
   onClick: () => void;
 }) {
   const Icon = node.kind === "library" ? BookOpen : Coffee;
@@ -26,6 +29,11 @@ export default function UnvettedMarker({
       <span className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-slate-400 text-white shadow-md">
         <Icon size={10} strokeWidth={2.75} />
       </span>
+      {rank && (
+        <span className="absolute -left-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full border border-white bg-invert text-[9px] font-bold text-invert-fg">
+          {rank}
+        </span>
+      )}
       <span
         className={`pointer-events-none absolute left-1/2 top-full -translate-x-1/2 whitespace-nowrap rounded-md border border-line bg-solid/95 px-2 py-0.5 text-center shadow transition-opacity ${
           active ? "" : "opacity-0 group-hover:opacity-100"

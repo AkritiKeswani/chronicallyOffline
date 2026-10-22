@@ -9,7 +9,8 @@ import ChatDrawer from "./ChatDrawer";
 import AccountMenu from "./AccountMenu";
 import CollectionsPanel from "./CollectionsPanel";
 import DropSpot from "./DropSpot";
-import NearbySearch, { type NearbyResult } from "./NearbySearch";
+import type { MatchResponse } from "@/app/api/match/route";
+import MatchBar from "./MatchBar";
 import RadarGrid from "./RadarGrid";
 import VibeMap from "./VibeMap";
 
@@ -27,12 +28,18 @@ export default function HoustonVibeApp() {
   const [selected, setSelected] = useState<VibeNode | null>(null);
   const [listsOpen, setListsOpen] = useState(false);
   const [filterId, setFilterId] = useState<string | null>(null);
-  const [nearby, setNearby] = useState<NearbyResult | null>(null);
+  const [match, setMatch] = useState<MatchResponse | null>(null);
   const { collections } = useCollections();
   const { pref, setPref } = useTheme();
 
   const filter = collections.find((c) => c.id === filterId) ?? null;
-  const visibleIds = filter ? filter.cafeIds : nearby ? nearby.results.map((r) => r.id) : null;
+  const visibleIds = filter
+    ? filter.cafeIds
+    : match
+      ? match.picks.length > 0
+        ? match.picks.map((p) => p.id)
+        : match.results.map((r) => r.spot.id)
+      : null;
   const savedTotal = new Set(collections.flatMap((c) => c.cafeIds)).size;
 
   return (
@@ -42,7 +49,7 @@ export default function HoustonVibeApp() {
           <div className="rounded-2xl border border-line bg-surface px-4 py-3 shadow-sm backdrop-blur">
             <h1 className="text-lg font-semibold tracking-tight">Houston Vibe Map</h1>
             <p className="font-mono text-[10px] uppercase tracking-widest text-accent">
-              HTX Work &amp; Crowd Radar
+              Find your Houston work spot
             </p>
           </div>
           <button
@@ -120,7 +127,7 @@ export default function HoustonVibeApp() {
             apiKey={MAPS_KEY}
             selected={selected}
             visibleIds={visibleIds}
-            nearby={nearby}
+            match={match}
             onSelect={setSelected}
           />
         ) : (
@@ -128,7 +135,7 @@ export default function HoustonVibeApp() {
         )}
       </main>
 
-      <NearbySearch nearby={nearby} onResult={setNearby} onSelect={setSelected} />
+      <MatchBar match={match} onMatch={setMatch} onSelect={setSelected} />
 
       {selected && (
         <ChatDrawer key={selected.id} node={selected} onClose={() => setSelected(null)} />

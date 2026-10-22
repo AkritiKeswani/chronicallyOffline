@@ -113,3 +113,47 @@ export async function communityContext(spotId: string): Promise<string> {
 
   return lines.join("\n");
 }
+
+/** One-line community summary per spot (Wi-Fi, outlets, noise, live pulses), for ranking prompts. */
+export async function communityBriefs(): Promise<Record<string, string>> {
+  const supabase = serverSupabase();
+  if (!supabase) return {};
+  const since = new Date(Date.now() - PULSE_WINDOW_MS).toISOString();
+  const [stats, pulses] = await Promise.all([
+    supabase.from("spot_stats").select("*"),
+    supabase.from("pulses").select("spot_id, kind").gte("created_at", since),
+  ]);
+
+  const briefs: Record<string, string[]> = {};
+  for (const s of (stats.data ?? []) as {
+    spot_id: string;
+    checkins: number;
+    wifi_avg: number | null;
+    outlets: keyof typeof OUTLETS | null;
+    noise: keyof typeof NOISE | null;
+  }[]) {
+    (briefs[s.spot_id] ??= []).push(
+      [
+        s.wifi_avg != null && `Wi-Fi ${s.wifi_avg}/5`,
+        s.outlets && OUTLETS[s.outlets],
+        s.noise && NOISE[s.noise],
+        `${s.checkins} check-ins`,
+      ]
+        .filter(Boolean)
+        .join(", "),
+    );
+  }
+  const counts: Record<string, Partial<Record<PulseKind, number>>> = {};
+  for (const p of (pulses.data ?? []) as { spot_id: string; kind: PulseKind }[]) {
+    const c = (counts[p.spot_id] ??= {});
+    c[p.kind] = (c[p.kind] ?? 0) + 1;
+  }
+  for (const [spot, c] of Object.entries(counts)) {
+    (briefs[spot] ??= []).push(
+      `right now: ${Object.entries(c)
+        .map(([k, n]) => `${PULSE_KINDS[k as PulseKind].label} ×${n}`)
+        .join(", ")}`,
+    );
+  }
+  return Object.fromEntries(Object.entries(briefs).map(([k, v]) => [k, v.join("; ")]));
+}

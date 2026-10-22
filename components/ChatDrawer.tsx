@@ -6,7 +6,7 @@ import { getPersona } from "@/lib/auth";
 import { useCommunity } from "@/lib/community";
 import { googleMapsUrl, type VibeNode } from "@/lib/nodes";
 import { readable } from "@/lib/theme";
-import CommunityPanel, { WorkabilitySummary } from "./CommunityPanel";
+import CommunityPanel, { QuickPulses, WorkabilitySummary } from "./CommunityPanel";
 import SaveMenu from "./SaveMenu";
 
 type Message = {
@@ -160,20 +160,26 @@ export default function ChatDrawer({
               <Users size={12} /> {here} {here === 1 ? "person" : "people"} working here now
             </p>
           )}
+          <QuickPulses spotId={node.id} />
         </div>
       )}
 
       {community.ready && (
-        <div className="flex gap-1 border-b border-line px-5 pt-2 text-xs">
+        <div className="grid grid-cols-2 gap-2 border-b border-line px-5 py-3">
           {(["chat", "community"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`-mb-px border-b-2 px-2 pb-2 font-medium capitalize ${
-                tab === t ? "border-fg text-fg" : "border-transparent text-muted hover:text-fg"
+              className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
+                tab === t ? "border-invert bg-invert text-invert-fg" : "border-line text-fg hover:bg-fg/5"
               }`}
             >
-              {t === "chat" ? `Chat with ${node.name.split(" ")[0]}` : "Community"}
+              <span className="block font-semibold">
+                {t === "chat" ? `💬 Ask ${node.name.split(" ")[0]}` : "✍️ Reviews & who's here"}
+              </span>
+              <span className={`block ${tab === t ? "opacity-80" : "text-muted"}`}>
+                {t === "chat" ? "Do I fit the vibe right now?" : "Rate Wi-Fi, outlets, noise · say you're here"}
+              </span>
             </button>
           ))}
         </div>

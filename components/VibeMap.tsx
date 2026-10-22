@@ -10,7 +10,7 @@ import { useTheme } from "@/lib/theme";
 import CafeMarker from "./CafeMarker";
 import HtmlMarker from "./HtmlMarker";
 import UnvettedMarker from "./UnvettedMarker";
-import type { NearbyResult } from "./NearbySearch";
+import type { MatchResponse } from "@/app/api/match/route";
 
 // Google's POI/business/transit icons removed so our spots are the only
 // things that pop. Shared rules + per-theme palette.
@@ -129,10 +129,11 @@ export default function VibeMap(props: {
   apiKey: string;
   selected: VibeNode | null;
   visibleIds: string[] | null;
-  nearby: NearbyResult | null;
+  match: MatchResponse | null;
   onSelect: (node: VibeNode) => void;
 }) {
   const { theme } = useTheme();
+  const pickedIds = props.match?.picks.map((p) => p.id) ?? [];
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [showGoogle, setShowGoogle] = useState(true);
 
@@ -151,15 +152,16 @@ export default function VibeMap(props: {
           zoomControl
           className="h-full w-full"
         >
-          <Markers {...props} zoom={zoom} />
+          <Markers {...props} zoom={zoom} pickedIds={pickedIds} />
           <GoogleLayer
             enabled={showGoogle}
             zoom={zoom}
             selected={props.selected}
-            nearby={props.nearby}
+            match={props.match}
+            pickedIds={pickedIds}
             onSelect={props.onSelect}
           />
-          {props.nearby && <NearbyOverlay nearby={props.nearby} />}
+          {props.match && <MatchOverlay match={props.match} />}
         </Map>
       </APIProvider>
 
@@ -214,13 +216,15 @@ function GoogleLayer({
   enabled,
   zoom,
   selected,
-  nearby,
+  match,
+  pickedIds,
   onSelect,
 }: {
   enabled: boolean;
   zoom: number;
   selected: VibeNode | null;
-  nearby: NearbyResult | null;
+  match: MatchResponse | null;
+  pickedIds: string[];
   onSelect: (node: VibeNode) => void;
 }) {
   const map = useMap();
@@ -259,11 +263,14 @@ function GoogleLayer({
   const spots = new globalThis.Map<string, VibeNode>();
   if (enabled && zoom >= GOOGLE_MIN_ZOOM)
     Object.values(browsed).forEach((s) => spots.set(s.id, s));
-  if (enabled) nearby?.others.forEach(({ node }) => spots.set(node.id, node));
+  if (enabled) match?.others.forEach(({ spot }) => spots.set(spot.id, spot));
+  // Top picks always show, even with the Google layer off.
+  match?.others.forEach(({ spot }) => pickedIds.includes(spot.id) && spots.set(spot.id, spot));
   if (selected && !selected.vetted) spots.set(selected.id, selected);
 
   return [...spots.values()].map((node) => {
-    const active = node.id === selected?.id;
+    const rank = pickedIds.indexOf(node.id) + 1;
+    const active = node.id === selected?.id || rank > 0;
     return (
       <HtmlMarker
         key={node.id}
@@ -273,6 +280,7 @@ function GoogleLayer({
         <UnvettedMarker
           node={node}
           active={active}
+          rank={rank || undefined}
           onClick={() => onSelect(node)}
         />
       </HtmlMarker>
@@ -285,7 +293,9 @@ function Markers({
   visibleIds,
   onSelect,
   zoom,
+  pickedIds,
 }: {
+  pickedIds: string[];
   selected: VibeNode | null;
   visibleIds: string[] | null;
   onSelect: (node: VibeNode) => void;
@@ -355,7 +365,8 @@ function Markers({
       >
         <CafeMarker
           node={node}
-          active={active}
+          active={active || pickedIds.includes(node.id)}
+          rank={pickedIds.indexOf(node.id) + 1 || undefined}
           compact={zoom < LABEL_ZOOM}
           dimmed={visibleIds !== null && !visibleIds.includes(node.id)}
           savedEmojis={emojisForCafe(collections, node.id)}
@@ -368,9 +379,37 @@ function Markers({
   });
 }
 
-function NearbyOverlay({ nearby }: { nearby: NearbyResult }) {
+function MatchOverlay({ match }: { match: MatchResponse }) {
   const map = useMap();
-  const { origin, radiusMi } = nearby;
+
+  // No location: frame the top picks instead of a radius.
+  useEffect(() => {
+    if (!map || match.origin) return;
+    const all = [...match.results.map((r) => r.spot), ...match.others.map((o) => o.spot)];
+    const picks = match.picks.map((p) => all.find((s) => s.id === p.id)).filter(Boolean) as VibeNode[];
+    if (picks.length === 0) return;
+    if (picks.length === 1) {
+      map.panTo({ lat: picks[0].lat, lng: picks[0].lng });
+      map.setZoom(15);
+      return;
+    }
+    const bounds = new google.maps.LatLngBounds();
+    picks.forEach((p) => bounds.extend({ lat: p.lat, lng: p.lng }));
+    map.fitBounds(bounds, 160);
+  }, [map, match]);
+
+  if (!match.origin || match.radiusMi == null) return null;
+  return <RadiusOverlay origin={match.origin} radiusMi={match.radiusMi} />;
+}
+
+function RadiusOverlay({
+  origin,
+  radiusMi,
+}: {
+  origin: NonNullable<MatchResponse["origin"]>;
+  radiusMi: number;
+}) {
+  const map = useMap();
 
   // Frame the search radius whenever a new search comes in.
   useEffect(() => {

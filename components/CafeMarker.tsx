@@ -14,6 +14,7 @@ export default function CafeMarker({
   savedEmojis,
   hereCount = 0,
   eventToday = false,
+  rank,
   onClick,
 }: {
   node: VibeNode;
@@ -26,6 +27,8 @@ export default function CafeMarker({
   hereCount?: number;
   /** An approved event is happening here today. */
   eventToday?: boolean;
+  /** 1 or 2 when this is a top match for the user's search. */
+  rank?: number;
   onClick: () => void;
 }) {
   const small = compact && !active;
@@ -62,6 +65,11 @@ export default function CafeMarker({
             <Coffee size={17} strokeWidth={2.5} />
           )}
         </span>
+        {rank && (
+          <span className="absolute -left-3 -top-3 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-invert text-[10px] font-bold text-invert-fg shadow">
+            {rank}
+          </span>
+        )}
         {hereCount > 0 && (
           <span
             className="absolute -bottom-2 -right-3 rounded-full border border-white bg-emerald-500 px-1 text-[10px] font-semibold leading-4 text-white"

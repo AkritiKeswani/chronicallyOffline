@@ -67,6 +67,47 @@ export function WorkabilitySummary({ spotId }: { spotId: string }) {
   );
 }
 
+/** One-tap "what's it like right now" buttons, shown at the top of the drawer. */
+export function QuickPulses({ spotId }: { spotId: string }) {
+  const auth = useAuth();
+  const { pulses } = useCommunity();
+  const [sent, setSent] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function tap(kind: PulseKind) {
+    if (!auth.user) return signInWithGoogle();
+    setError(null);
+    try {
+      await sendPulse(spotId, kind);
+      setSent(PULSE_KINDS[kind].label);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't send");
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+        Here now? Tap what you see{!auth.user && " (sign in)"}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {(Object.entries(PULSE_KINDS) as [PulseKind, (typeof PULSE_KINDS)[PulseKind]][]).map(([kind, p]) => (
+          <button
+            key={kind}
+            onClick={() => tap(kind)}
+            className="rounded-full border border-line px-2.5 py-1 text-xs text-fg hover:bg-fg/5"
+          >
+            {p.emoji} {p.label}
+            {pulses[spotId]?.[kind] ? <span className="ml-1 font-semibold">{pulses[spotId]![kind]}</span> : null}
+          </button>
+        ))}
+      </div>
+      {sent && !error && <p className="text-[11px] text-emerald-500">Thanks — &ldquo;{sent}&rdquo; is live for 3 hours.</p>}
+      {error && <p className="text-[11px] text-red-500">{error}</p>}
+    </div>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-2">
@@ -108,7 +149,6 @@ const inputClass =
 
 export default function CommunityPanel({ node }: { node: VibeNode }) {
   const auth = useAuth();
-  const { pulses } = useCommunity();
   const feed = useSpotFeed(node.id, auth.user?.id ?? null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -154,7 +194,7 @@ export default function CommunityPanel({ node }: { node: VibeNode }) {
           onClick={signInWithGoogle}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-invert py-2 text-xs font-medium text-invert-fg"
         >
-          <LogIn size={14} /> Sign in with Google to check in, send pulses or say you&rsquo;re here
+          <LogIn size={14} /> Sign in with Google to rate this spot or say you&rsquo;re here
         </button>
       )}
 
@@ -163,22 +203,6 @@ export default function CommunityPanel({ node }: { node: VibeNode }) {
           {message.text}
         </p>
       )}
-
-      <Section title="Right now — tap what you see">
-        <div className="flex flex-wrap gap-1.5">
-          {(Object.entries(PULSE_KINDS) as [PulseKind, (typeof PULSE_KINDS)[PulseKind]][]).map(([kind, p]) => (
-            <button
-              key={kind}
-              disabled={!signedIn || busy !== null}
-              onClick={() => run(`pulse-${kind}`, () => sendPulse(node.id, kind), `Thanks — "${p.label}" is live for 3 hours`)}
-              className="rounded-full border border-line px-2.5 py-1 text-xs text-fg hover:bg-fg/5 disabled:opacity-50"
-            >
-              {p.emoji} {p.label}
-              {pulses[node.id]?.[kind] ? <span className="ml-1 text-muted">{pulses[node.id]![kind]}</span> : null}
-            </button>
-          ))}
-        </div>
-      </Section>
 
       <Section title="Who's working here">
         {feed?.presence.length ? (
@@ -246,7 +270,7 @@ export default function CommunityPanel({ node }: { node: VibeNode }) {
       </Section>
 
       {signedIn && (
-        <Section title="Rate this spot">
+        <Section title="Rate this spot — the next person sees it">
           <div className="space-y-2 rounded-lg border border-line p-3">
             <div className="flex items-center gap-1">
               <span className="mr-1 text-[11px] text-muted">Wi-Fi</span>

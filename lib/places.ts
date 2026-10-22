@@ -222,3 +222,9 @@ export async function findPlace(query: string): Promise<FoundPlace | null> {
     open: p.businessStatus === "OPERATIONAL",
   };
 }
+
+/** Resolve free text ("equinox river oaks") to a point in the Houston area. */
+export async function resolveOrigin(query: string) {
+  const place = await findPlace(query);
+  return place && { name: place.name, address: place.address, lat: place.lat, lng: place.lng };
+}

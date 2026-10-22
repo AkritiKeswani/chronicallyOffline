@@ -10,7 +10,7 @@ Houston is huge and spread out, and it's surprisingly hard to find places that h
 
 - **Live map of curated spots.** Dark or light Google Map with glowing markers. Nearby spots group together when you zoom out and expand when you zoom in, like Google Maps.
 - **Talk to the spot.** Click a cafe or library to chat with it in first person. It tells you honestly whether you fit its crowd right now. Powered by Gemini with Google Maps grounding, so it knows real hours and details.
-- **Near me.** Type where you are, even a keyword like "Equinox River Oaks", pick a radius (1–25 mi) and optionally say what you want ("quiet spot to study"). You get spots in range plus a recommendation.
+- **Match me.** Say what you need ("quiet spot with outlets for Zoom calls"), optionally near you or a place, and get your top 2 spots with a reason for each — highlighted on the map.
 - **Saved lists.** Save spots to *Want to try*, *Favorites*, *Work spots* or your own lists, and filter the map by list.
 - **One tap to Google Maps.** Every spot links to its exact Google Maps listing.
 - **Radar Grid.** A stylized fallback view that works without a Maps key.
@@ -48,7 +48,6 @@ Sign in with Google to make the map better for the next person:
 ## Roadmap
 
 - More hand-picked spots (Black Hole, Campesino, Boomtown, Slowpokes, Day 6, Antidote, Switchyards, Tout Suite, Tenfold, BlendIn)
-- Vibe-match bar: describe yourself and what you need; the map highlights your top matches
 - Filters: late night, parking, neighborhood
 - Time-of-day vibe notes per spot
 - Friends, so "who's here" can be friends-only

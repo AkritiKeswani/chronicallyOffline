@@ -20,7 +20,7 @@ export default function CollectionsPanel({
   const { collections, toggleCafe, deleteCollection } = useCollections();
 
   return (
-    <aside className="absolute left-4 top-24 z-10 flex max-h-[calc(100dvh-7rem)] w-72 flex-col rounded-2xl border border-line bg-surface shadow-lg backdrop-blur-xl sm:left-6">
+    <aside className="absolute left-4 top-24 z-20 flex max-h-[calc(100dvh-7rem)] w-72 flex-col rounded-2xl border border-line bg-surface shadow-lg backdrop-blur-xl sm:left-6">
       <header className="flex items-center justify-between border-b border-line px-4 py-3">
         <h2 className="text-sm font-semibold">Your lists</h2>
         <button onClick={onClose} aria-label="Close lists" className="text-muted hover:text-fg">
