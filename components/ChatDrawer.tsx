@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, Loader2, MapPin, Send, X } from "lucide-react";
+import { ExternalLink, Loader2, MapPin, Send, Star, X } from "lucide-react";
 import { googleMapsUrl, type VibeNode } from "@/lib/nodes";
 import { readable } from "@/lib/theme";
 import SaveMenu from "./SaveMenu";
@@ -85,9 +85,23 @@ export default function ChatDrawer({
               <ExternalLink size={10} className="ml-1 inline align-baseline" />
             </span>
           </a>
-          <p className="mt-2 text-sm" style={{ color: readable(node.color) }}>
-            {node.demographic}
-          </p>
+          {node.vetted ? (
+            <p className="mt-2 text-sm" style={{ color: readable(node.color) }}>
+              {node.demographic}
+            </p>
+          ) : (
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+              <span className="rounded-full border border-dashed border-line-strong px-2 py-0.5">
+                Not vetted yet · from Google Maps
+              </span>
+              {node.rating != null && (
+                <span className="flex items-center gap-1">
+                  <Star size={11} className="fill-current" /> {node.rating.toFixed(1)}
+                  {node.ratingCount != null && ` (${node.ratingCount.toLocaleString()})`}
+                </span>
+              )}
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap gap-1.5">
             {node.tags.map((t) => (
               <span

@@ -1,8 +1,8 @@
 "use client";
 
 import { Trash2, X } from "lucide-react";
-import { useCollections } from "@/lib/collections";
-import { NODES, type VibeNode } from "@/lib/nodes";
+import { resolveSpot, useCollections } from "@/lib/collections";
+import type { VibeNode } from "@/lib/nodes";
 
 const DEFAULT_IDS = new Set(["want-to-try", "favorites", "work-spots"]);
 
@@ -31,7 +31,7 @@ export default function CollectionsPanel({
       <div className="space-y-1 overflow-y-auto p-2">
         {collections.map((c) => {
           const active = c.id === activeId;
-          const cafes = NODES.filter((n) => c.cafeIds.includes(n.id));
+          const cafes = c.cafeIds.map(resolveSpot).filter((n): n is VibeNode => !!n);
           return (
             <div
               key={c.id}
@@ -74,6 +74,7 @@ export default function CollectionsPanel({
                         className="flex-1 truncate text-left text-fg/80 hover:text-fg"
                       >
                         {n.name}
+                        {!n.vetted && <span className="ml-1 text-[10px] text-subtle">· not vetted</span>}
                       </button>
                       <button
                         onClick={() => toggleCafe(c.id, n.id)}

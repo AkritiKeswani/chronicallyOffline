@@ -112,7 +112,7 @@ export default function HoustonVibeApp() {
         {view === "map" && hasMapsKey ? (
           <VibeMap
             apiKey={MAPS_KEY}
-            selectedId={selected?.id ?? null}
+            selected={selected}
             visibleIds={visibleIds}
             nearby={nearby}
             onSelect={setSelected}

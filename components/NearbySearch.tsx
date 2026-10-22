@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, LocateFixed, Sparkles, X } from "lucide-react";
+import { Loader2, LocateFixed, Navigation, Sparkles, X } from "lucide-react";
 import type { Origin } from "@/lib/geo";
 import { NODES, type VibeNode } from "@/lib/nodes";
 
@@ -9,6 +9,8 @@ export type NearbyResult = {
   origin: Origin;
   radiusMi: number;
   results: { id: string; miles: number }[];
+  /** Unvetted Google spots in range. */
+  others: { node: VibeNode; miles: number }[];
   pick: string | null;
 };
 
@@ -30,16 +32,42 @@ export default function NearbySearch({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function search(e: React.FormEvent) {
+  function search(e: React.FormEvent) {
     e.preventDefault();
     if (!query.trim() || loading) return;
+    run({ query });
+  }
+
+  function useMyLocation() {
+    if (loading) return;
+    if (!("geolocation" in navigator)) {
+      setError("Your browser doesn't support location");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => run({ coords: { lat: pos.coords.latitude, lng: pos.coords.longitude } }),
+      (err) => {
+        setLoading(false);
+        setError(
+          err.code === err.PERMISSION_DENIED
+            ? "Location is blocked — allow it in your browser, or type where you are"
+            : "Couldn't get your location — try typing it instead",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }
+
+  async function run(where: { query: string } | { coords: { lat: number; lng: number } }) {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/near", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, radiusMi, vibe }),
+        body: JSON.stringify({ ...where, radiusMi, vibe }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Search failed");
@@ -74,6 +102,15 @@ export default function NearbySearch({
       </div>
 
       <form onSubmit={search} className="space-y-2">
+        <button
+          type="button"
+          onClick={useMyLocation}
+          disabled={loading}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-line py-1.5 text-xs font-medium text-accent hover:bg-fg/5 disabled:opacity-40"
+        >
+          <Navigation size={13} /> Use my location
+        </button>
+        <p className="text-center text-[10px] text-subtle">or type where you are</p>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -134,8 +171,10 @@ export default function NearbySearch({
             </p>
           )}
 
-          {nearby.results.length === 0 ? (
+          {nearby.results.length === 0 && nearby.others.length === 0 ? (
             <p className="mt-2 text-xs text-muted">Nothing within {nearby.radiusMi} mi — try a bigger radius.</p>
+          ) : nearby.results.length === 0 ? (
+            <p className="mt-2 text-[11px] text-muted">No vetted spots in range yet.</p>
           ) : (
             <ul className="mt-2 max-h-40 space-y-0.5 overflow-y-auto">
               {nearby.results.map((r) => {
@@ -154,6 +193,29 @@ export default function NearbySearch({
                 );
               })}
             </ul>
+          )}
+
+          {nearby.others.length > 0 && (
+            <>
+              <p className="mt-2 text-[10px] uppercase tracking-wider text-subtle">
+                Also nearby · from Google, not vetted
+              </p>
+              <ul className="mt-1 max-h-32 space-y-0.5 overflow-y-auto">
+                {nearby.others.map(({ node: n, miles }) => (
+                  <li key={n.id}>
+                    <button
+                      onClick={() => onSelect(n)}
+                      className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs hover:bg-fg/5"
+                    >
+                      <span className="h-2 w-2 shrink-0 rounded-full border border-white bg-slate-400" />
+                      <span className="flex-1 truncate text-fg/80">{n.name}</span>
+                      {n.rating != null && <span className="text-subtle">★ {n.rating.toFixed(1)}</span>}
+                      <span className="text-muted">{miles.toFixed(1)} mi</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
       )}

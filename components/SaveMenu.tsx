@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Bookmark, BookmarkCheck, Check, Plus } from "lucide-react";
-import { useCollections } from "@/lib/collections";
+import { rememberPlace, useCollections } from "@/lib/collections";
 import type { VibeNode } from "@/lib/nodes";
 import { readable } from "@/lib/theme";
 
@@ -18,6 +18,7 @@ export default function SaveMenu({ node }: { node: VibeNode }) {
   function create(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
+    rememberPlace(node);
     createCollection(name.trim(), emoji.trim(), node.id);
     setName("");
     setEmoji("📍");
@@ -47,7 +48,10 @@ export default function SaveMenu({ node }: { node: VibeNode }) {
             return (
               <button
                 key={c.id}
-                onClick={() => toggleCafe(c.id, node.id)}
+                onClick={() => {
+                  rememberPlace(node);
+                  toggleCafe(c.id, node.id);
+                }}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-fg hover:bg-fg/5"
               >
                 <span className="w-5 text-center">{c.emoji}</span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { NODES, type VibeNode } from "@/lib/nodes";
 
 export type Collection = {
   id: string;
@@ -91,6 +92,32 @@ export function useCollections() {
       write(read().filter((c) => c.id !== collectionId));
     },
   };
+}
+
+// Unvetted Google spots aren't in NODES, so keep a snapshot of any that get
+// saved to a list so the list can still show them later.
+const PLACES_KEY = "houston-vibes:saved-places";
+
+function readPlaces(): Record<string, VibeNode> {
+  try {
+    return JSON.parse(localStorage.getItem(PLACES_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+export function rememberPlace(node: VibeNode) {
+  if (node.vetted) return;
+  try {
+    localStorage.setItem(PLACES_KEY, JSON.stringify({ ...readPlaces(), [node.id]: node }));
+  } catch {
+    // Storage blocked — the list will just not be able to show this spot later.
+  }
+}
+
+/** Resolve a saved id to a spot: vetted from NODES, unvetted from the snapshot. */
+export function resolveSpot(id: string): VibeNode | undefined {
+  return NODES.find((n) => n.id === id) ?? readPlaces()[id];
 }
 
 export function emojisForCafe(collections: Collection[], cafeId: string) {

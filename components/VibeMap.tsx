@@ -8,6 +8,7 @@ import { NODES, type VibeNode } from "@/lib/nodes";
 import { useTheme } from "@/lib/theme";
 import CafeMarker from "./CafeMarker";
 import HtmlMarker from "./HtmlMarker";
+import UnvettedMarker from "./UnvettedMarker";
 import type { NearbyResult } from "./NearbySearch";
 
 // Google's POI/business/transit icons removed so our spots are the only
@@ -15,20 +16,47 @@ import type { NearbyResult } from "./NearbySearch";
 const HIDE_NOISE: google.maps.MapTypeStyle[] = [
   { featureType: "poi", stylers: [{ visibility: "off" }] },
   { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "administrative.land_parcel", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
-  { featureType: "road.local", elementType: "labels", stylers: [{ visibility: "off" }] },
+  {
+    featureType: "administrative.land_parcel",
+    stylers: [{ visibility: "off" }],
+  },
+  {
+    featureType: "road",
+    elementType: "labels.icon",
+    stylers: [{ visibility: "off" }],
+  },
+  {
+    featureType: "road.local",
+    elementType: "labels",
+    stylers: [{ visibility: "off" }],
+  },
 ];
 
 const DARK_STYLE: google.maps.MapTypeStyle[] = [
   { elementType: "geometry", stylers: [{ color: "#0b0e16" }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#4b5563" }] },
   { elementType: "labels.text.stroke", stylers: [{ color: "#0b0e16" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#161b26" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#1f2633" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#060a12" }] },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#161b26" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#1f2633" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#060a12" }],
+  },
   { featureType: "landscape.man_made", stylers: [{ color: "#0d111b" }] },
-  { featureType: "administrative.neighborhood", elementType: "labels.text.fill", stylers: [{ color: "#64748b" }] },
+  {
+    featureType: "administrative.neighborhood",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#64748b" }],
+  },
   ...HIDE_NOISE,
 ];
 
@@ -36,11 +64,27 @@ const LIGHT_STYLE: google.maps.MapTypeStyle[] = [
   { elementType: "geometry", stylers: [{ color: "#eef1f6" }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#8a94a6" }] },
   { elementType: "labels.text.stroke", stylers: [{ color: "#eef1f6" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#ffffff" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#dfe4ec" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#c8d6e5" }] },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#dfe4ec" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#c8d6e5" }],
+  },
   { featureType: "landscape.man_made", stylers: [{ color: "#e6eaf0" }] },
-  { featureType: "administrative.neighborhood", elementType: "labels.text.fill", stylers: [{ color: "#64748b" }] },
+  {
+    featureType: "administrative.neighborhood",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#64748b" }],
+  },
   ...HIDE_NOISE,
 ];
 
@@ -66,7 +110,9 @@ function cluster(nodes: VibeNode[], zoom: number): Cluster[] {
   const groups: { x: number; y: number; nodes: VibeNode[] }[] = [];
   for (const node of nodes) {
     const p = toWorldPx(node.lat, node.lng, zoom);
-    const hit = groups.find((g) => Math.hypot(g.x - p.x, g.y - p.y) < CLUSTER_PX);
+    const hit = groups.find(
+      (g) => Math.hypot(g.x - p.x, g.y - p.y) < CLUSTER_PX,
+    );
     if (hit) hit.nodes.push(node);
     else groups.push({ ...p, nodes: [node] });
   }
@@ -80,61 +126,165 @@ function cluster(nodes: VibeNode[], zoom: number): Cluster[] {
 
 export default function VibeMap(props: {
   apiKey: string;
-  selectedId: string | null;
+  selected: VibeNode | null;
   visibleIds: string[] | null;
   nearby: NearbyResult | null;
   onSelect: (node: VibeNode) => void;
 }) {
   const { theme } = useTheme();
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const [showGoogle, setShowGoogle] = useState(true);
 
   return (
-    <APIProvider apiKey={props.apiKey}>
-      <Map
-        styles={theme === "dark" ? DARK_STYLE : LIGHT_STYLE}
-        backgroundColor={theme === "dark" ? "#0b0e16" : "#eef1f6"}
-        defaultCenter={DEFAULT_CENTER}
-        defaultZoom={DEFAULT_ZOOM}
-        onZoomChanged={(e) => setZoom(Math.round(e.detail.zoom))}
-        gestureHandling="greedy"
-        clickableIcons={false}
-        disableDefaultUI
-        zoomControl
-        className="h-full w-full"
+    <div className="relative h-full w-full">
+      <APIProvider apiKey={props.apiKey}>
+        <Map
+          styles={theme === "dark" ? DARK_STYLE : LIGHT_STYLE}
+          backgroundColor={theme === "dark" ? "#0b0e16" : "#eef1f6"}
+          defaultCenter={DEFAULT_CENTER}
+          defaultZoom={DEFAULT_ZOOM}
+          onZoomChanged={(e) => setZoom(Math.round(e.detail.zoom))}
+          gestureHandling="greedy"
+          clickableIcons={false}
+          disableDefaultUI
+          zoomControl
+          className="h-full w-full"
+        >
+          <Markers {...props} zoom={zoom} />
+          <GoogleLayer
+            enabled={showGoogle}
+            zoom={zoom}
+            selected={props.selected}
+            nearby={props.nearby}
+            onSelect={props.onSelect}
+          />
+          {props.nearby && <NearbyOverlay nearby={props.nearby} />}
+        </Map>
+      </APIProvider>
+
+      <button
+        onClick={() => setShowGoogle((v) => !v)}
+        title="Show other cafes and libraries from Google Maps (not vetted)"
+        className="absolute bottom-6 right-16 z-10 flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-muted shadow-sm backdrop-blur hover:text-fg"
       >
-        <Markers {...props} zoom={zoom} />
-        {props.nearby && <NearbyOverlay nearby={props.nearby} />}
-      </Map>
-    </APIProvider>
+        <span
+          className={`h-2.5 w-2.5 rounded-full border-2 border-white ${showGoogle ? "bg-slate-400" : "bg-transparent"}`}
+          style={{ boxShadow: "0 0 0 1px var(--line-strong)" }}
+        />
+        Google spots {showGoogle ? "on" : "off"}
+        {showGoogle && zoom < GOOGLE_MIN_ZOOM && (
+          <span className="text-subtle">· zoom in</span>
+        )}
+      </button>
+    </div>
   );
 }
 
+const GOOGLE_MIN_ZOOM = 14;
+
+/**
+ * Unvetted cafes/libraries from Google Places around wherever the map is
+ * looking (zoomed in), plus any from a near-me search or a selected one.
+ */
+function GoogleLayer({
+  enabled,
+  zoom,
+  selected,
+  nearby,
+  onSelect,
+}: {
+  enabled: boolean;
+  zoom: number;
+  selected: VibeNode | null;
+  nearby: NearbyResult | null;
+  onSelect: (node: VibeNode) => void;
+}) {
+  const map = useMap();
+  const [browsed, setBrowsed] = useState<Record<string, VibeNode>>({});
+
+  useEffect(() => {
+    if (!map || !enabled) return;
+    const fetched = new Set<string>();
+
+    const listener = map.addListener("idle", async () => {
+      const center = map.getCenter();
+      if (!center || (map.getZoom() ?? 0) < GOOGLE_MIN_ZOOM) return;
+      // ~1km grid so small pans don't refetch.
+      const key = `${center.lat().toFixed(2)},${center.lng().toFixed(2)}`;
+      if (fetched.has(key)) return;
+      fetched.add(key);
+      try {
+        const res = await fetch(
+          `/api/places?lat=${center.lat()}&lng=${center.lng()}&radiusMi=1.5`,
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        setBrowsed((prev) => {
+          const next = { ...prev };
+          for (const s of data.spots as VibeNode[]) next[s.id] = s;
+          return next;
+        });
+      } catch (err) {
+        fetched.delete(key);
+        console.error("Google spots", err);
+      }
+    });
+    return () => listener.remove();
+  }, [map, enabled]);
+
+  const spots = new globalThis.Map<string, VibeNode>();
+  if (enabled && zoom >= GOOGLE_MIN_ZOOM)
+    Object.values(browsed).forEach((s) => spots.set(s.id, s));
+  if (enabled) nearby?.others.forEach(({ node }) => spots.set(node.id, node));
+  if (selected && !selected.vetted) spots.set(selected.id, selected);
+
+  return [...spots.values()].map((node) => {
+    const active = node.id === selected?.id;
+    return (
+      <HtmlMarker
+        key={node.id}
+        position={{ lat: node.lat, lng: node.lng }}
+        zIndex={active ? 9 : 0}
+      >
+        <UnvettedMarker
+          node={node}
+          active={active}
+          onClick={() => onSelect(node)}
+        />
+      </HtmlMarker>
+    );
+  });
+}
+
 function Markers({
-  selectedId,
+  selected,
   visibleIds,
   onSelect,
   zoom,
 }: {
-  selectedId: string | null;
+  selected: VibeNode | null;
   visibleIds: string[] | null;
   onSelect: (node: VibeNode) => void;
   zoom: number;
 }) {
   const map = useMap();
   const { collections } = useCollections();
+  const selectedId = selected?.id ?? null;
 
   const clusters = useMemo(
-    () => (zoom <= CLUSTER_MAX_ZOOM ? cluster(NODES, zoom) : NODES.map((n) => ({ key: n.id, lat: n.lat, lng: n.lng, nodes: [n] }))),
+    () =>
+      zoom <= CLUSTER_MAX_ZOOM
+        ? cluster(NODES, zoom)
+        : NODES.map((n) => ({ key: n.id, lat: n.lat, lng: n.lng, nodes: [n] })),
     [zoom],
   );
 
   // Fly to whatever gets selected (marker click, saved list, etc).
   useEffect(() => {
-    const node = NODES.find((n) => n.id === selectedId);
-    if (!map || !node) return;
-    map.panTo({ lat: node.lat, lng: node.lng });
+    if (!map || !selected) return;
+    map.panTo({ lat: selected.lat, lng: selected.lng });
     if ((map.getZoom() ?? 0) < LABEL_ZOOM) map.setZoom(LABEL_ZOOM);
-  }, [map, selectedId]);
+  }, [map, selected]);
 
   function zoomInto(c: Cluster) {
     if (!map) return;
@@ -146,7 +296,11 @@ function Markers({
   return clusters.map((c) => {
     if (c.nodes.length > 1) {
       return (
-        <HtmlMarker key={c.key} position={{ lat: c.lat, lng: c.lng }} zIndex={2}>
+        <HtmlMarker
+          key={c.key}
+          position={{ lat: c.lat, lng: c.lng }}
+          zIndex={2}
+        >
           <button
             onClick={() => zoomInto(c)}
             className="group relative flex h-12 w-12 items-center justify-center"
@@ -154,7 +308,9 @@ function Markers({
           >
             <span
               className="absolute -inset-2 rounded-full opacity-70 blur-lg"
-              style={{ background: `conic-gradient(${c.nodes.map((n) => n.color).join(",")},${c.nodes[0].color})` }}
+              style={{
+                background: `conic-gradient(${c.nodes.map((n) => n.color).join(",")},${c.nodes[0].color})`,
+              }}
             />
             <span className="relative flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-solid text-sm font-bold text-fg shadow-lg transition group-hover:scale-110">
               {c.nodes.length}
@@ -166,7 +322,11 @@ function Markers({
     const node = c.nodes[0];
     const active = node.id === selectedId;
     return (
-      <HtmlMarker key={c.key} position={{ lat: node.lat, lng: node.lng }} zIndex={active ? 10 : 1}>
+      <HtmlMarker
+        key={c.key}
+        position={{ lat: node.lat, lng: node.lng }}
+        zIndex={active ? 10 : 1}
+      >
         <CafeMarker
           node={node}
           active={active}
@@ -190,7 +350,12 @@ function NearbyOverlay({ nearby }: { nearby: NearbyResult }) {
     const dLat = radiusMi / 69;
     const dLng = radiusMi / (69 * Math.cos((origin.lat * Math.PI) / 180));
     map.fitBounds(
-      { north: origin.lat + dLat, south: origin.lat - dLat, east: origin.lng + dLng, west: origin.lng - dLng },
+      {
+        north: origin.lat + dLat,
+        south: origin.lat - dLat,
+        east: origin.lng + dLng,
+        west: origin.lng - dLng,
+      },
       60,
     );
   }, [map, origin.lat, origin.lng, radiusMi]);

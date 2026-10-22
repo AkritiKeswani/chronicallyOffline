@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { milesBetween, type Origin } from "@/lib/geo";
-import { NODES } from "@/lib/nodes";
+import { NODES, type VibeNode } from "@/lib/nodes";
+import { nearbySpots } from "@/lib/places";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -41,18 +42,23 @@ export async function POST(request: Request) {
     return Response.json({ error: "No Google Maps key configured" }, { status: 500 });
   }
 
-  const { query, radiusMi, vibe } = (await request.json()) as {
-    query: string;
+  const { query, coords, radiusMi, vibe } = (await request.json()) as {
+    query?: string;
+    /** From the browser's geolocation, instead of a typed query. */
+    coords?: { lat: number; lng: number };
     radiusMi: number;
     vibe?: string;
   };
-  if (!query?.trim() || !(radiusMi > 0)) {
+  const hasCoords = Number.isFinite(coords?.lat) && Number.isFinite(coords?.lng);
+  if ((!query?.trim() && !hasCoords) || !(radiusMi > 0)) {
     return Response.json({ error: "Enter a location and a distance" }, { status: 400 });
   }
 
   let origin: Origin | null;
   try {
-    origin = await resolvePlace(query.trim());
+    origin = hasCoords
+      ? { name: "Your location", address: "", lat: coords!.lat, lng: coords!.lng }
+      : await resolvePlace(query!.trim());
   } catch (err) {
     console.error("near: places error", err);
     return Response.json({ error: "Couldn't look up that location" }, { status: 502 });
@@ -61,25 +67,41 @@ export async function POST(request: Request) {
     return Response.json({ error: `Couldn't find "${query}" on Google Maps` }, { status: 404 });
   }
 
+  const where = hasCoords ? "my current location" : origin.name;
   const results = NODES.map((n) => ({ id: n.id, miles: milesBetween(origin, n) }))
     .filter((r) => r.miles <= radiusMi)
     .sort((a, b) => a.miles - b.miles);
 
+  // Unvetted Google spots in range, so an area with no vetted picks isn't a dead end.
+  let others: { node: VibeNode; miles: number }[] = [];
+  try {
+    others = (await nearbySpots(origin.lat, origin.lng, radiusMi))
+      .map((node) => ({ node, miles: milesBetween(origin, node) }))
+      .filter((o) => o.miles <= radiusMi)
+      .sort((a, b) => a.miles - b.miles);
+  } catch (err) {
+    console.error("near: nearby places error", err);
+  }
+
   let pick: string | null = null;
-  if (vibe?.trim() && results.length > 0 && process.env.GEMINI_API_KEY) {
-    const options = results
-      .map((r) => {
+  if (vibe?.trim() && results.length + others.length > 0 && process.env.GEMINI_API_KEY) {
+    const options = [
+      ...results.map((r) => {
         const n = NODES.find((x) => x.id === r.id)!;
-        return `- ${n.name} (${r.miles.toFixed(1)} mi, ${n.kind}): ${n.demographic}. ${n.crowd}`;
-      })
-      .join("\n");
+        return `- ${n.name} (${r.miles.toFixed(1)} mi, ${n.kind}, vetted): ${n.demographic}. ${n.crowd}`;
+      }),
+      ...others.slice(0, 8).map(
+        ({ node: n, miles }) =>
+          `- ${n.name} (${miles.toFixed(1)} mi, ${n.kind}, not vetted, Google ${n.rating ?? "?"}★ from ${n.ratingCount ?? 0} reviews)`,
+      ),
+    ].join("\n");
     try {
       const response = await ai.models.generateContent({
         model: "gemini-4-argon",
-        contents: `I'm near ${origin.name} in Houston and I'm looking for: "${vibe.trim()}".\nOptions within ${radiusMi} miles:\n${options}`,
+        contents: `I'm near ${where} in Houston and I'm looking for: "${vibe.trim()}".\nOptions within ${radiusMi} miles:\n${options}`,
         config: {
           systemInstruction:
-            "You are a Houston local recommending where to work or hang out. Pick the single best option from the list (only from the list) and say why in at most 2 short sentences. Be honest if none fit well.",
+            "You are a Houston local recommending where to work or hang out. Pick the single best option from the list (only from the list) and say why in at most 2 short sentences. Prefer vetted spots when they fit; if you pick a not-vetted one, say it is not vetted yet. Be honest if none fit well. Plain text, no markdown.",
           maxOutputTokens: 150,
         },
       });
@@ -89,5 +111,5 @@ export async function POST(request: Request) {
     }
   }
 
-  return Response.json({ origin, results, pick });
+  return Response.json({ origin, results, others, pick });
 }
