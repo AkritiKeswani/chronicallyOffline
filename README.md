@@ -52,7 +52,7 @@ The app should get better the more people use it. If you go to Agora and it's "m
 - Near-me results beyond the curated list, clearly marked as uncurated
 - Automatic re-verification of every spot against Google Places
 - Saved lists that sync across devices
-- Public deployment
+- Model choice via OpenRouter (note: Google Maps grounding is Gemini-only, so other models would get Places details passed in directly)
 
 ## Getting started
 
@@ -66,7 +66,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Variable | Used for |
 | --- | --- |
-| `GEMINI_API_KEY` | Spot chat and near-me recommendations (Google AI Studio; billing must be enabled for `gemini-4-argon` + Maps grounding) |
+| `GEMINI_API_KEY` | Spot chat and near-me recommendations (Google AI Studio; billing must be enabled for Maps grounding; uses `gemini-3.8-flash`) |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | The map (Maps JavaScript API). Restrict it to your domain before deploying. |
 | `GOOGLE_MAPS_SERVER_KEY` | Optional server-only key for Places lookups in near-me search. Falls back to the public key. |
 

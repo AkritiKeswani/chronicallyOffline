@@ -43,7 +43,7 @@ const ALLOWED_PRIMARY = new Set([
   "library",
 ]);
 const MIN_RATING = 4.0;
-const MIN_REVIEWS = 20;
+const MIN_REVIEWS = 10;
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const cache = new Map<string, { at: number; value: unknown }>();
@@ -91,30 +91,70 @@ function toNode(p: ApiPlace): VibeNode {
   };
 }
 
+const TILE_RADIUS_MI = 1.5;
+
+/** One searchNearby call: up to 20 popular places of the given types. */
+async function searchCircle(types: string[], lat: number, lng: number, radiusMi: number) {
+  const data = await placesFetch(
+    "places:searchNearby",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        includedTypes: types,
+        maxResultCount: 20,
+        rankPreference: "POPULARITY",
+        locationRestriction: {
+          circle: {
+            center: { latitude: lat, longitude: lng },
+            radius: Math.min(radiusMi * METERS_PER_MILE, 50000),
+          },
+        },
+      }),
+    },
+    FIELDS.map((f) => `places.${f}`).join(","),
+  );
+  return (data.places ?? []) as ApiPlace[];
+}
+
+/**
+ * Center + up to 6 surrounding circles covering the search radius. Google
+ * caps each request at 20 places, so tiling is how a bigger area gets more.
+ */
+function tiles(lat: number, lng: number, radiusMi: number) {
+  if (radiusMi <= TILE_RADIUS_MI) return [{ lat, lng, r: radiusMi }];
+  const r = radiusMi / 2;
+  const milesPerDegLng = 69 * Math.cos((lat * Math.PI) / 180);
+  return [
+    { lat, lng, r },
+    ...Array.from({ length: 6 }, (_, k) => {
+      const a = (k * Math.PI) / 3;
+      return {
+        lat: lat + (r * 1.6 * Math.sin(a)) / 69,
+        lng: lng + (r * 1.6 * Math.cos(a)) / milesPerDegLng,
+        r,
+      };
+    }),
+  ];
+}
+
 /** Popular, open cafes/coffee shops/libraries near a point, excluding vetted spots. */
 export function nearbySpots(lat: number, lng: number, radiusMi: number): Promise<VibeNode[]> {
   // ~100m grid so nearby map pans share cache entries.
   const key = `near:${lat.toFixed(3)},${lng.toFixed(3)},${radiusMi}`;
   return cached(key, async () => {
-    const data = await placesFetch(
-      "places:searchNearby",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          includedTypes: ["cafe", "coffee_shop", "library"],
-          maxResultCount: 20,
-          rankPreference: "POPULARITY",
-          locationRestriction: {
-            circle: {
-              center: { latitude: lat, longitude: lng },
-              radius: Math.min(radiusMi * METERS_PER_MILE, 50000),
-            },
-          },
-        }),
-      },
-      FIELDS.map((f) => `places.${f}`).join(","),
-    );
-    return ((data.places ?? []) as ApiPlace[])
+    // Cafes and libraries are searched separately so libraries don't crowd
+    // out cafes in the 20-result cap; cafes get tiled, libraries are sparse.
+    const batches = await Promise.all([
+      ...tiles(lat, lng, radiusMi).map((t) =>
+        searchCircle(["cafe", "coffee_shop", "tea_house"], t.lat, t.lng, t.r),
+      ),
+      searchCircle(["library"], lat, lng, radiusMi),
+    ]);
+
+    const byId = new Map<string, ApiPlace>();
+    for (const p of batches.flat()) byId.set(p.id, p);
+
+    return [...byId.values()]
       .filter(
         (p) =>
           p.businessStatus === "OPERATIONAL" &&

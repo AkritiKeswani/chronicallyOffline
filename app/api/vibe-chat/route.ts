@@ -4,6 +4,9 @@ import { placeById } from "@/lib/places";
 
 type ChatMessage = { role: "user" | "model"; text: string };
 
+// Fast + supports Google Maps grounding (~4s/reply vs ~20s for gemini-4-argon).
+const GEMINI_MODEL = "gemini-3.8-flash";
+
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export async function POST(request: Request) {
@@ -49,7 +52,7 @@ Tell the user honestly whether they fit your crowd demographic and working vibe 
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-4-argon",
+      model: GEMINI_MODEL,
       contents: messages.slice(-10).map((m) => ({
         role: m.role,
         parts: [{ text: m.text }],
@@ -57,6 +60,8 @@ Tell the user honestly whether they fit your crowd demographic and working vibe 
       config: {
         systemInstruction,
         maxOutputTokens: 150,
+        // Thinking eats the 150-token budget and adds seconds; replies are short.
+        thinkingConfig: { thinkingBudget: 0 },
         tools: [{ googleMaps: {} }],
         toolConfig: {
           retrievalConfig: {

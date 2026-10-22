@@ -162,25 +162,48 @@ export default function VibeMap(props: {
         </Map>
       </APIProvider>
 
-      <button
-        onClick={() => setShowGoogle((v) => !v)}
-        title="Show other cafes and libraries from Google Maps (not vetted)"
-        className="absolute bottom-6 right-16 z-10 flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-muted shadow-sm backdrop-blur hover:text-fg"
-      >
-        <span
-          className={`h-2.5 w-2.5 rounded-full border-2 border-white ${showGoogle ? "bg-slate-400" : "bg-transparent"}`}
-          style={{ boxShadow: "0 0 0 1px var(--line-strong)" }}
-        />
-        Google spots {showGoogle ? "on" : "off"}
-        {showGoogle && zoom < GOOGLE_MIN_ZOOM && (
-          <span className="text-subtle">· zoom in</span>
-        )}
-      </button>
+      <div className="absolute bottom-6 right-16 z-10 w-56 rounded-xl border border-line bg-surface p-2.5 text-[11px] shadow-sm backdrop-blur">
+        <p className="flex items-center gap-2 text-fg">
+          <span
+            className="h-3 w-3 shrink-0 rounded-full border-2 border-white"
+            style={{
+              background: "conic-gradient(#a78bfa, #22d3ee, #f472b6, #fbbf24, #a78bfa)",
+              boxShadow: "0 0 8px #a78bfa",
+            }}
+          />
+          <span>
+            <b className="font-semibold">Vetted pick</b>
+            <span className="text-muted"> · hand-checked, with a crowd profile</span>
+          </span>
+        </p>
+        <button
+          onClick={() => setShowGoogle((v) => !v)}
+          title={showGoogle ? "Hide Google spots" : "Show Google spots"}
+          className="mt-1.5 flex w-full items-center gap-2 text-left text-fg"
+        >
+          <span
+            className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-white ${showGoogle ? "bg-slate-400" : "bg-transparent"}`}
+            style={{ boxShadow: "0 0 0 1px var(--line-strong)" }}
+          />
+          <span className="flex-1">
+            <b className="font-semibold">From Google</b>
+            <span className="text-muted"> · not vetted yet</span>
+            {showGoogle && zoom < GOOGLE_MIN_ZOOM && <span className="text-subtle"> · zoom in</span>}
+          </span>
+          <span
+            className={`relative h-3.5 w-6 shrink-0 rounded-full transition ${showGoogle ? "bg-invert" : "bg-fg/20"}`}
+          >
+            <span
+              className={`absolute top-0.5 h-2.5 w-2.5 rounded-full bg-solid transition-all ${showGoogle ? "left-3" : "left-0.5"}`}
+            />
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
 
-const GOOGLE_MIN_ZOOM = 14;
+const GOOGLE_MIN_ZOOM = 13;
 
 /**
  * Unvetted cafes/libraries from Google Places around wherever the map is

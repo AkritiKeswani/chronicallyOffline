@@ -3,6 +3,10 @@ import { milesBetween, type Origin } from "@/lib/geo";
 import { NODES, type VibeNode } from "@/lib/nodes";
 import { nearbySpots } from "@/lib/places";
 
+// Picking among many spots is the "think harder" job, so it gets the bigger
+// model; spot chats use gemini-3.8-flash for speed.
+const GEMINI_MODEL = "gemini-4-argon";
+
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // Prefer a server-only key so the browser key can be locked to your domain.
@@ -97,7 +101,7 @@ export async function POST(request: Request) {
     ].join("\n");
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-4-argon",
+        model: GEMINI_MODEL,
         contents: `I'm near ${where} in Houston and I'm looking for: "${vibe.trim()}".\nOptions within ${radiusMi} miles:\n${options}`,
         config: {
           systemInstruction:
