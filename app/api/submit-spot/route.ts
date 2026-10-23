@@ -10,6 +10,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const HOUSTON = { lat: 29.7604, lng: -95.3698 };
 const MAX_MILES_FROM_HOUSTON = 40;
+const MIN_VETTED_RATING = 4.0;
 
 // POST /api/submit-spot  { query, take, credit? }  (Authorization: Bearer <supabase token>)
 export async function POST(request: Request) {
@@ -46,6 +47,14 @@ export async function POST(request: Request) {
   }
   if (!place.open) {
     return Response.json({ error: `Google lists ${place.name} as closed` }, { status: 400 });
+  }
+  if (place.rating == null || place.rating < MIN_VETTED_RATING) {
+    return Response.json(
+      {
+        error: `${place.name} is ${place.rating ?? "unrated"}★ on Google — spots need ${MIN_VETTED_RATING}★ or higher to be added`,
+      },
+      { status: 400 },
+    );
   }
   if ((await getAllSpots()).some((s) => s.placeId === place.placeId)) {
     return Response.json({ error: `${place.name} is already on the map` }, { status: 409 });

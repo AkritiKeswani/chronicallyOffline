@@ -22,7 +22,9 @@ export default function MatchBar({
   match,
   onMatch,
   onSelect,
+  drawerOpen = false,
 }: {
+  drawerOpen?: boolean;
   match: MatchResponse | null;
   onMatch: (match: MatchResponse | null) => void;
   onSelect: (node: VibeNode) => void;
@@ -106,7 +108,7 @@ export default function MatchBar({
   const byId = (id: string) => all.find((s) => s.id === id);
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-[5.5rem] z-10 flex justify-center px-4">
+    <div className={`pointer-events-none absolute inset-x-0 top-[5.5rem] z-10 flex justify-center px-4 ${drawerOpen ? "md:pr-[29rem]" : ""}`}>
       <div className="pointer-events-auto w-full max-w-xl space-y-2">
         <form
           onSubmit={search}

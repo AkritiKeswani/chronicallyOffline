@@ -7,6 +7,7 @@ import { useCommunity } from "@/lib/community";
 import { googleMapsUrl, type VibeNode } from "@/lib/nodes";
 import { readable } from "@/lib/theme";
 import CommunityPanel, { QuickPulses, WorkabilitySummary } from "./CommunityPanel";
+import NoteBox from "./NoteBox";
 import SaveMenu from "./SaveMenu";
 
 type Message = {
@@ -163,6 +164,10 @@ export default function ChatDrawer({
           <QuickPulses spotId={node.id} />
         </div>
       )}
+
+      <div className="border-b border-line px-5 py-3">
+        <NoteBox node={node} />
+      </div>
 
       {community.ready && (
         <div className="grid grid-cols-2 gap-2 border-b border-line px-5 py-3">

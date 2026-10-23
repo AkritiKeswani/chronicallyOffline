@@ -56,6 +56,13 @@ async function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   return value;
 }
 
+/** Google Places daily quota is used up. */
+export class QuotaError extends Error {
+  constructor() {
+    super("Google spots hit today's limit — showing hand-picked spots only");
+  }
+}
+
 async function placesFetch(path: string, init: RequestInit, fieldMask: string) {
   if (!PLACES_KEY) throw new Error("No Google Maps key configured");
   const res = await fetch(`https://places.googleapis.com/v1/${path}`, {
@@ -66,6 +73,7 @@ async function placesFetch(path: string, init: RequestInit, fieldMask: string) {
       "X-Goog-FieldMask": fieldMask,
     },
   });
+  if (res.status === 429) throw new QuotaError();
   if (!res.ok) throw new Error(`Places ${res.status}: ${await res.text()}`);
   return res.json();
 }
@@ -91,8 +99,6 @@ function toNode(p: ApiPlace): VibeNode {
   };
 }
 
-const TILE_RADIUS_MI = 1.5;
-
 /** One searchNearby call: up to 20 popular places of the given types. */
 async function searchCircle(types: string[], lat: number, lng: number, radiusMi: number) {
   const data = await placesFetch(
@@ -116,27 +122,6 @@ async function searchCircle(types: string[], lat: number, lng: number, radiusMi:
   return (data.places ?? []) as ApiPlace[];
 }
 
-/**
- * Center + up to 6 surrounding circles covering the search radius. Google
- * caps each request at 20 places, so tiling is how a bigger area gets more.
- */
-function tiles(lat: number, lng: number, radiusMi: number) {
-  if (radiusMi <= TILE_RADIUS_MI) return [{ lat, lng, r: radiusMi }];
-  const r = radiusMi / 2;
-  const milesPerDegLng = 69 * Math.cos((lat * Math.PI) / 180);
-  return [
-    { lat, lng, r },
-    ...Array.from({ length: 6 }, (_, k) => {
-      const a = (k * Math.PI) / 3;
-      return {
-        lat: lat + (r * 1.6 * Math.sin(a)) / 69,
-        lng: lng + (r * 1.6 * Math.cos(a)) / milesPerDegLng,
-        r,
-      };
-    }),
-  ];
-}
-
 /** Popular, open cafes/coffee shops/libraries near a point, excluding vetted spots. */
 export function nearbySpots(lat: number, lng: number, radiusMi: number): Promise<VibeNode[]> {
   // ~100m grid so nearby map pans share cache entries.
@@ -144,10 +129,10 @@ export function nearbySpots(lat: number, lng: number, radiusMi: number): Promise
   return cached(key, async () => {
     // Cafes and libraries are searched separately so libraries don't crowd
     // out cafes in the 20-result cap; cafes get tiled, libraries are sparse.
+    // Two calls per area (cafes, libraries). The project's Nearby Search
+    // quota is small (100/day), so no tiling — results are cached 24h.
     const batches = await Promise.all([
-      ...tiles(lat, lng, radiusMi).map((t) =>
-        searchCircle(["cafe", "coffee_shop", "tea_house"], t.lat, t.lng, t.r),
-      ),
+      searchCircle(["cafe", "coffee_shop", "tea_house"], lat, lng, radiusMi),
       searchCircle(["library"], lat, lng, radiusMi),
     ]);
 
@@ -192,6 +177,8 @@ export type FoundPlace = {
   /** Primary type is a cafe/coffee shop/tea house/library (vs. e.g. a restaurant). */
   isWorkSpot: boolean;
   open: boolean;
+  rating: number | null;
+  ratingCount: number;
 };
 
 /** Resolve free text ("black hole coffee montrose") to one real Houston-area place. */
@@ -220,6 +207,8 @@ export async function findPlace(query: string): Promise<FoundPlace | null> {
     kind: node.kind,
     isWorkSpot: ALLOWED_PRIMARY.has(p.primaryType ?? "") || p.primaryType === "bakery",
     open: p.businessStatus === "OPERATIONAL",
+    rating: p.rating ?? null,
+    ratingCount: p.userRatingCount ?? 0,
   };
 }
 

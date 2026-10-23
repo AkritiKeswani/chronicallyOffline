@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { milesBetween, type Origin } from "@/lib/geo";
 import type { VibeNode } from "@/lib/nodes";
-import { nearbySpots, resolveOrigin } from "@/lib/places";
+import { nearbySpots, QuotaError, resolveOrigin } from "@/lib/places";
 import { communityBriefs, getAllSpots } from "@/lib/spots-server";
 
 // Ranking spots against what someone needs is the "think harder" job.
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         .filter((o) => o.miles <= radiusMi)
         .sort((a, b) => a.miles - b.miles);
     } catch (err) {
-      console.error("match: nearby places error", err);
+      if (!(err instanceof QuotaError)) console.error("match: nearby places error", err);
     }
   }
 

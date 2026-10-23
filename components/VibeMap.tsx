@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { APIProvider, Circle, Map, useMap } from "@vis.gl/react-google-maps";
 import { emojisForCafe, useCollections } from "@/lib/collections";
 import { METERS_PER_MILE } from "@/lib/geo";
@@ -136,6 +136,8 @@ export default function VibeMap(props: {
   const pickedIds = props.match?.picks.map((p) => p.id) ?? [];
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [showGoogle, setShowGoogle] = useState(true);
+  const [googlePaused, setGooglePaused] = useState(false);
+  const pauseGoogle = useCallback(() => setGooglePaused(true), []);
 
   return (
     <div className="relative h-full w-full">
@@ -160,6 +162,7 @@ export default function VibeMap(props: {
             match={props.match}
             pickedIds={pickedIds}
             onSelect={props.onSelect}
+            onPaused={pauseGoogle}
           />
           {props.match && <MatchOverlay match={props.match} />}
         </Map>
@@ -191,7 +194,11 @@ export default function VibeMap(props: {
           <span className="flex-1">
             <b className="font-semibold">From Google</b>
             <span className="text-muted"> · not vetted yet</span>
-            {showGoogle && zoom < GOOGLE_MIN_ZOOM && <span className="text-subtle"> · zoom in</span>}
+{showGoogle && googlePaused ? (
+              <span className="block text-amber-500">Paused — hit today&rsquo;s Google limit</span>
+            ) : (
+              showGoogle && zoom < GOOGLE_MIN_ZOOM && <span className="text-subtle"> · zoom in</span>
+            )}
           </span>
           <span
             className={`relative h-3.5 w-6 shrink-0 rounded-full transition ${showGoogle ? "bg-invert" : "bg-fg/20"}`}
@@ -219,7 +226,9 @@ function GoogleLayer({
   match,
   pickedIds,
   onSelect,
+  onPaused,
 }: {
+  onPaused: () => void;
   enabled: boolean;
   zoom: number;
   selected: VibeNode | null;
@@ -230,6 +239,7 @@ function GoogleLayer({
   const map = useMap();
   const [browsed, setBrowsed] = useState<Record<string, VibeNode>>({});
 
+
   useEffect(() => {
     if (!map || !enabled) return;
     const fetched = new Set<string>();
@@ -237,15 +247,20 @@ function GoogleLayer({
     const listener = map.addListener("idle", async () => {
       const center = map.getCenter();
       if (!center || (map.getZoom() ?? 0) < GOOGLE_MIN_ZOOM) return;
-      // ~1km grid so small pans don't refetch.
-      const key = `${center.lat().toFixed(2)},${center.lng().toFixed(2)}`;
+      // Snap to a ~2km grid so pans (and other users, via the server cache)
+      // reuse the same lookups — the Places quota is small.
+      const lat = Math.round(center.lat() / 0.02) * 0.02;
+      const lng = Math.round(center.lng() / 0.02) * 0.02;
+      const key = `${lat.toFixed(2)},${lng.toFixed(2)}`;
       if (fetched.has(key)) return;
       fetched.add(key);
       try {
-        const res = await fetch(
-          `/api/places?lat=${center.lat()}&lng=${center.lng()}&radiusMi=1.5`,
-        );
+        const res = await fetch(`/api/places?lat=${lat.toFixed(2)}&lng=${lng.toFixed(2)}&radiusMi=2`);
         const data = await res.json();
+        if (res.status === 429) {
+          onPaused();
+          return;
+        }
         if (!res.ok) throw new Error(data.error);
         setBrowsed((prev) => {
           const next = { ...prev };
@@ -254,11 +269,11 @@ function GoogleLayer({
         });
       } catch (err) {
         fetched.delete(key);
-        console.error("Google spots", err);
+        console.warn("Google spots", err);
       }
     });
     return () => listener.remove();
-  }, [map, enabled]);
+  }, [map, enabled, onPaused]);
 
   const spots = new globalThis.Map<string, VibeNode>();
   if (enabled && zoom >= GOOGLE_MIN_ZOOM)

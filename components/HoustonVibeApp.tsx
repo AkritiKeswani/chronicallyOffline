@@ -135,7 +135,7 @@ export default function HoustonVibeApp() {
         )}
       </main>
 
-      <MatchBar match={match} onMatch={setMatch} onSelect={setSelected} />
+      <MatchBar match={match} onMatch={setMatch} onSelect={setSelected} drawerOpen={Boolean(selected)} />
 
       {selected && (
         <ChatDrawer key={selected.id} node={selected} onClose={() => setSelected(null)} />

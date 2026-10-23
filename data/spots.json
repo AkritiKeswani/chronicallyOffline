@@ -1,24 +1,6 @@
 [
   {
     "kind": "cafe",
-    "id": "cafe-ion",
-    "name": "Cafe Ion",
-    "placeId": "ChIJBzrhTQC_QIYRJOLjELLkiHQ",
-    "address": "4201 Main St Ste 110, Houston, TX 77002",
-    "neighborhood": "Midtown · The Ion",
-    "lat": 29.7343,
-    "lng": -95.38224,
-    "demographic": "Founders & Co-working Nights",
-    "tags": [
-      "Founders",
-      "Builders",
-      "Startup events"
-    ],
-    "crowd": "Inside The Ion, Houston's innovation hub: tech founders, builders, and co-workers drifting in from startup events.",
-    "color": "#a78bfa"
-  },
-  {
-    "kind": "cafe",
     "id": "brass-tacks",
     "name": "Brass Tacks",
     "placeId": "ChIJCZ44dX-_QIYR2UJJ-nkD_qY",
@@ -92,7 +74,7 @@
   {
     "kind": "cafe",
     "id": "empire-cafe",
-    "name": "Empire Café",
+    "name": "Empire Caf\u00e9",
     "placeId": "ChIJp9YS95nAQIYRYQP5SNw4_7Y",
     "address": "1732 Westheimer Rd, Houston, TX 77098",
     "neighborhood": "Montrose / Westheimer",
@@ -131,7 +113,7 @@
     "name": "The Coffee House at West End",
     "placeId": "ChIJmVkfl7LBQIYR9DhGXU3FnkE",
     "address": "802 Shepherd Dr, Houston, TX 77007",
-    "neighborhood": "West End · Shepherd",
+    "neighborhood": "West End \u00b7 Shepherd",
     "lat": 29.76931,
     "lng": -95.40889,
     "demographic": "Med Students & Deep Focus",
@@ -167,7 +149,7 @@
     "name": "Doherty Library",
     "placeId": "ChIJ76aHT32_QIYRgDs7nSNVPks",
     "address": "1100 W Main St, Houston, TX 77006",
-    "neighborhood": "University of St. Thomas · Montrose",
+    "neighborhood": "University of St. Thomas \u00b7 Montrose",
     "lat": 29.73643,
     "lng": -95.39313,
     "demographic": "UST Students & Quiet Study",

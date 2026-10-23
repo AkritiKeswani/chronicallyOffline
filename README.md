@@ -20,7 +20,6 @@ Houston is huge and spread out, and it's surprisingly hard to find places that h
 
 | Spot | Area | Crowd |
 | --- | --- | --- |
-| Cafe Ion | Midtown · The Ion | Founders & co-working |
 | Brass Tacks | EaDo | Mid-20s remote tech & creatives |
 | Agora | Montrose / Westheimer | Late-20s creatives & night owls |
 | Empire Café | Montrose / Westheimer | Brunch crowd & Montrose regulars |
@@ -32,7 +31,7 @@ Houston is huge and spread out, and it's surprisingly hard to find places that h
 | Doherty Library | University of St. Thomas | UST students & quiet study |
 | M.D. Anderson Library | University of Houston | UH students & big study sessions |
 
-Every spot is matched to its Google Places ID, so its location and listing are the real ones.
+Every spot is matched to its Google Places ID and has a 4.0★+ Google rating; new spots must meet the same bar.
 
 ## Community (live)
 
