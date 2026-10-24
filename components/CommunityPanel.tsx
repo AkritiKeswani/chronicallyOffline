@@ -15,6 +15,10 @@ import {
 import type { VibeNode } from "@/lib/nodes";
 import { PULSE_KINDS, type Checkin, type PulseKind } from "@/lib/supabase";
 
+const SCORES = { wifi: "Wi-Fi", food: "Food", drinks: "Drinks", ambience: "Ambience" } as const;
+type Score = keyof typeof SCORES;
+const NO_SCORES: Record<Score, number | null> = { wifi: null, food: null, drinks: null, ambience: null };
+
 const OUTLETS = { everywhere: "Outlets everywhere", limited: "Limited outlets", scarce: "Outlets scarce" };
 const NOISE = { quiet: "Quiet", buzz: "Ambient buzz", loud: "Loud" };
 const PARKING = { easy: "Easy parking", street: "Street parking", paid: "Paid parking" };
@@ -42,6 +46,9 @@ export function WorkabilitySummary({ spotId }: { spotId: string }) {
               <Wifi size={12} /> {s.wifi_avg}/5
             </span>
           )}
+          {s.food_avg != null && <span>🍽 {s.food_avg}/5</span>}
+          {s.drinks_avg != null && <span>☕ {s.drinks_avg}/5</span>}
+          {s.ambience_avg != null && <span>✨ {s.ambience_avg}/5</span>}
           {s.outlets && <span>🔌 {OUTLETS[s.outlets]}</span>}
           {s.noise && <span>🔊 {NOISE[s.noise]}</span>}
           {s.parking && <span>🚗 {PARKING[s.parking]}</span>}
@@ -50,7 +57,7 @@ export function WorkabilitySummary({ spotId }: { spotId: string }) {
           </span>
         </p>
       ) : (
-        <p className="text-muted">No check-ins yet — Wi-Fi, outlets and noise come from people who go here.</p>
+        <p className="text-muted">No ratings yet — Wi-Fi, food, drinks and ambience come from people who go here.</p>
       )}
       {live.length > 0 && (
         <p className="flex flex-wrap gap-1.5">
@@ -159,7 +166,7 @@ export default function CommunityPanel({ node }: { node: VibeNode }) {
   const [showName, setShowName] = useState(false);
 
   // Check-in
-  const [wifi, setWifi] = useState<number | null>(null);
+  const [scores, setScores] = useState<Record<Score, number | null>>(NO_SCORES);
   const [outlets, setOutlets] = useState<Checkin["outlets"]>(null);
   const [noise, setNoise] = useState<Checkin["noise"]>(null);
   const [parking, setParking] = useState<Checkin["parking"]>(null);
@@ -185,7 +192,7 @@ export default function CommunityPanel({ node }: { node: VibeNode }) {
   }
 
   const signedIn = Boolean(auth.user);
-  const canCheckIn = wifi != null || outlets || noise || parking || note.trim();
+  const canCheckIn = Object.values(scores).some((v) => v != null) || outlets || noise || parking || note.trim();
 
   return (
     <div className="space-y-6 text-sm">
@@ -272,21 +279,23 @@ export default function CommunityPanel({ node }: { node: VibeNode }) {
       {signedIn && (
         <Section title="Rate this spot — the next person sees it">
           <div className="space-y-2 rounded-lg border border-line p-3">
-            <div className="flex items-center gap-1">
-              <span className="mr-1 text-[11px] text-muted">Wi-Fi</span>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setWifi(wifi === n ? null : n)}
-                  className={`h-6 w-6 rounded-md border text-[11px] ${
-                    wifi != null && n <= wifi ? "border-invert bg-invert text-invert-fg" : "border-line text-fg/80"
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
+            {(Object.entries(SCORES) as [Score, string][]).map(([key, label]) => (
+              <div key={key} className="flex items-center gap-1">
+                <span className="w-16 text-[11px] text-muted">{label}</span>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setScores((s) => ({ ...s, [key]: s[key] === n ? null : n }))}
+                    className={`h-6 w-6 rounded-md border text-[11px] ${
+                      scores[key] != null && n <= scores[key]! ? "border-invert bg-invert text-invert-fg" : "border-line text-fg/80"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            ))}
             <Choice options={OUTLETS} value={outlets} onChange={setOutlets} />
             <Choice options={NOISE} value={noise} onChange={setNoise} />
             <Choice options={PARKING} value={parking} onChange={setParking} />
@@ -303,8 +312,8 @@ export default function CommunityPanel({ node }: { node: VibeNode }) {
                 run(
                   "checkin",
                   async () => {
-                    await submitCheckin(node.id, { wifi, outlets, noise, parking, note: note.trim() || null });
-                    setWifi(null);
+                    await submitCheckin(node.id, { ...scores, outlets, noise, parking, note: note.trim() || null });
+                    setScores(NO_SCORES);
                     setOutlets(null);
                     setNoise(null);
                     setParking(null);
@@ -333,6 +342,9 @@ export default function CommunityPanel({ node }: { node: VibeNode }) {
                 <p className="mt-0.5 text-fg/80">
                   {[
                     c.wifi != null && `📶 ${c.wifi}/5`,
+                    c.food != null && `🍽 ${c.food}/5`,
+                    c.drinks != null && `☕ ${c.drinks}/5`,
+                    c.ambience != null && `✨ ${c.ambience}/5`,
                     c.outlets && `🔌 ${OUTLETS[c.outlets]}`,
                     c.noise && `🔊 ${NOISE[c.noise]}`,
                     c.parking && `🚗 ${PARKING[c.parking]}`,

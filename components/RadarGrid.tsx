@@ -1,13 +1,15 @@
 "use client";
 
 import { emojisForCafe, useCollections } from "@/lib/collections";
-import { useAllSpots, useCommunity } from "@/lib/community";
+import type { City } from "@/lib/cities";
+import { useCommunity, useVettedSpots } from "@/lib/community";
 import type { VibeNode } from "@/lib/nodes";
 import CafeMarker from "./CafeMarker";
 
 const PAD = 0.012;
 
 function projector(spots: VibeNode[]) {
+  if (spots.length === 0) return () => ({ left: "50%", top: "50%" });
   const lats = spots.map((n) => n.lat);
   const lngs = spots.map((n) => n.lng);
   const minLat = Math.min(...lats) - PAD;
@@ -21,17 +23,19 @@ function projector(spots: VibeNode[]) {
 }
 
 export default function RadarGrid({
+  city,
   selectedId,
   visibleIds,
   onSelect,
 }: {
+  city: City;
   selectedId: string | null;
   visibleIds: string[] | null;
   onSelect: (node: VibeNode) => void;
 }) {
   const { collections } = useCollections();
   const { here, eventsToday } = useCommunity();
-  const spots = useAllSpots();
+  const spots = useVettedSpots(city.id);
   const project = projector(spots);
 
   return (
@@ -75,7 +79,7 @@ export default function RadarGrid({
       ))}
 
       <div className="absolute bottom-4 right-4 font-mono text-[10px] uppercase tracking-widest text-accent/70">
-        HTX Radar · {spots.length} nodes live
+        {city.short} Radar · {spots.length} vetted spots
       </div>
     </div>
   );

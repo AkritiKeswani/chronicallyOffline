@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { currentCity, setCurrentCity } from "@/lib/city";
 import { getSupabase, supabaseConfigured, type Profile } from "@/lib/supabase";
 
 type AuthState = {
@@ -27,10 +28,11 @@ async function loadProfile(session: Session | null) {
   if (!supabase || !session) return set({ profile: null });
   const { data } = await supabase
     .from("profiles")
-    .select("id, display_name, handle")
+    .select("id, display_name, handle, city, field, interests, is_admin")
     .eq("id", session.user.id)
     .maybeSingle();
   set({ profile: data ?? null });
+  if (data?.city && !currentCity()) setCurrentCity(data.city);
 }
 
 function start() {
@@ -96,14 +98,14 @@ export async function signOut() {
   await getSupabase()?.auth.signOut();
 }
 
-export async function updateHandle(handle: string) {
+export async function updateProfile(
+  fields: Partial<Pick<Profile, "handle" | "city" | "field" | "interests">>,
+) {
   const supabase = getSupabase();
   if (!supabase || !state.session) throw new Error("Sign in first");
-  const clean = handle.trim().replace(/^@/, "").toLowerCase();
-  const { error } = await supabase
-    .from("profiles")
-    .update({ handle: clean || null })
-    .eq("id", state.session.user.id);
+  const patch = { ...fields };
+  if (patch.handle !== undefined) patch.handle = patch.handle?.trim().replace(/^@/, "").toLowerCase() || null;
+  const { error } = await supabase.from("profiles").update(patch).eq("id", state.session.user.id);
   if (error) {
     throw new Error(
       error.code === "23505"

@@ -1,12 +1,13 @@
-import spots from "@/data/spots.json";
+import type { CityId } from "@/lib/cities";
 
+/** A place on the map. `id` is always the Google place ID. */
 export type VibeNode = {
   id: string;
   kind: "cafe" | "library";
-  /** true = hand-picked with a crowd profile; false = pulled live from Google Maps. */
+  /** true = vetted by an admin (has a crowd profile); false = from Google search. */
   vetted: boolean;
+  city?: CityId;
   name: string;
-  /** Google Places ID — the source of truth for where this spot is. */
   placeId: string;
   address: string;
   neighborhood: string;
@@ -18,21 +19,44 @@ export type VibeNode = {
   color: string;
   rating?: number;
   ratingCount?: number;
-  /** Credit for community-submitted spots, e.g. "@sarah". */
-  curatedBy?: string;
 };
 
-/** Hand-picked spots live in data/spots.json; community picks come from Supabase. */
-export const NODES: VibeNode[] = (spots as Omit<VibeNode, "vetted">[]).map((s) => ({
-  ...s,
-  vetted: true,
-}));
+/** Row shape of the `spots` table (supabase/migrations/0003_multi_city.sql). */
+export type SpotRow = {
+  place_id: string;
+  city: CityId;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  kind: string;
+  neighborhood: string | null;
+  demographic: string | null;
+  tags: string[];
+  crowd: string | null;
+  color: string | null;
+};
 
 export const UNVETTED_COLOR = "#94a3b8";
-export const UNVETTED_PREFIX = "g:";
+export const DEFAULT_VETTED_COLOR = "#f472b6";
 
-export function isVettedPlace(placeId: string) {
-  return NODES.some((n) => n.placeId === placeId);
+export function spotFromRow(r: SpotRow): VibeNode {
+  return {
+    id: r.place_id,
+    placeId: r.place_id,
+    kind: r.kind === "library" ? "library" : "cafe",
+    vetted: true,
+    city: r.city,
+    name: r.name,
+    address: r.address,
+    neighborhood: r.neighborhood ?? "",
+    lat: r.lat,
+    lng: r.lng,
+    demographic: r.demographic ?? "Vetted pick",
+    tags: r.tags ?? [],
+    crowd: r.crowd ?? "",
+    color: r.color ?? DEFAULT_VETTED_COLOR,
+  };
 }
 
 export function googleMapsUrl(node: VibeNode) {

@@ -1,7 +1,8 @@
 import "server-only";
 
 import { METERS_PER_MILE } from "@/lib/geo";
-import { isVettedPlace, UNVETTED_COLOR, UNVETTED_PREFIX, type VibeNode } from "@/lib/nodes";
+import type { City } from "@/lib/cities";
+import { UNVETTED_COLOR, type VibeNode } from "@/lib/nodes";
 
 // Prefer a server-only key so the browser key can be locked to your domain.
 const PLACES_KEY =
@@ -59,7 +60,7 @@ async function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
 /** Google Places daily quota is used up. */
 export class QuotaError extends Error {
   constructor() {
-    super("Google spots hit today's limit — showing hand-picked spots only");
+    super("Google spots hit today's limit — showing vetted spots only");
   }
 }
 
@@ -81,12 +82,12 @@ async function placesFetch(path: string, init: RequestInit, fieldMask: string) {
 function toNode(p: ApiPlace): VibeNode {
   const isLibrary = p.primaryType === "library" || p.types?.includes("library");
   return {
-    id: `${UNVETTED_PREFIX}${p.id}`,
+    id: p.id,
     kind: isLibrary ? "library" : "cafe",
     vetted: false,
     name: p.displayName?.text ?? "Unknown place",
     placeId: p.id,
-    address: (p.formattedAddress ?? "").replace(/, USA$/, ""),
+    address: (p.formattedAddress ?? "").replace(/, (USA|UK)$/, ""),
     neighborhood: "From Google Maps",
     lat: p.location.latitude,
     lng: p.location.longitude,
@@ -122,14 +123,13 @@ async function searchCircle(types: string[], lat: number, lng: number, radiusMi:
   return (data.places ?? []) as ApiPlace[];
 }
 
-/** Popular, open cafes/coffee shops/libraries near a point, excluding vetted spots. */
+/** Popular, open cafes/coffee shops/libraries near a point (callers drop vetted ones). */
 export function nearbySpots(lat: number, lng: number, radiusMi: number): Promise<VibeNode[]> {
   // ~100m grid so nearby map pans share cache entries.
   const key = `near:${lat.toFixed(3)},${lng.toFixed(3)},${radiusMi}`;
   return cached(key, async () => {
     // Cafes and libraries are searched separately so libraries don't crowd
-    // out cafes in the 20-result cap; cafes get tiled, libraries are sparse.
-    // Two calls per area (cafes, libraries). The project's Nearby Search
+    // out cafes in the 20-result cap. Two calls per area (cafes, libraries). The project's Nearby Search
     // quota is small (100/day), so no tiling — results are cached 24h.
     const batches = await Promise.all([
       searchCircle(["cafe", "coffee_shop", "tea_house"], lat, lng, radiusMi),
@@ -145,8 +145,7 @@ export function nearbySpots(lat: number, lng: number, radiusMi: number): Promise
           p.businessStatus === "OPERATIONAL" &&
           ALLOWED_PRIMARY.has(p.primaryType ?? "") &&
           (p.rating ?? 0) >= MIN_RATING &&
-          (p.userRatingCount ?? 0) >= MIN_REVIEWS &&
-          !isVettedPlace(p.id),
+          (p.userRatingCount ?? 0) >= MIN_REVIEWS,
       )
       .map(toNode);
   });
@@ -165,8 +164,6 @@ export function placeById(placeId: string): Promise<VibeNode> {
   );
 }
 
-const HOUSTON = { latitude: 29.7604, longitude: -95.3698 };
-
 export type FoundPlace = {
   placeId: string;
   name: string;
@@ -181,8 +178,8 @@ export type FoundPlace = {
   ratingCount: number;
 };
 
-/** Resolve free text ("black hole coffee montrose") to one real Houston-area place. */
-export async function findPlace(query: string): Promise<FoundPlace | null> {
+/** Resolve free text ("black hole coffee montrose") to one real place in the city. */
+export async function findPlace(query: string, city: City): Promise<FoundPlace | null> {
   const data = await placesFetch(
     "places:searchText",
     {
@@ -190,7 +187,9 @@ export async function findPlace(query: string): Promise<FoundPlace | null> {
       body: JSON.stringify({
         textQuery: query,
         pageSize: 1,
-        locationBias: { circle: { center: HOUSTON, radius: 50000 } },
+        locationBias: {
+          circle: { center: { latitude: city.center.lat, longitude: city.center.lng }, radius: 50000 },
+        },
       }),
     },
     FIELDS.map((f) => `places.${f}`).join(","),
@@ -212,8 +211,8 @@ export async function findPlace(query: string): Promise<FoundPlace | null> {
   };
 }
 
-/** Resolve free text ("equinox river oaks") to a point in the Houston area. */
-export async function resolveOrigin(query: string) {
-  const place = await findPlace(query);
+/** Resolve free text ("equinox river oaks") to a point in the city. */
+export async function resolveOrigin(query: string, city: City) {
+  const place = await findPlace(query, city);
   return place && { name: place.name, address: place.address, lat: place.lat, lng: place.lng };
 }

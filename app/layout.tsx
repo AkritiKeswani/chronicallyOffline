@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Houston Vibe Map",
-  description: "HTX Work & Crowd Radar — find the Houston cafe crowd that fits you.",
+  title: "chronicallyOffline",
+  description:
+    "What people in their 20s and 30s are actually up to in Houston, SF, NYC, Philly and London — spots, ratings, events, and what to do today.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,10 +1,9 @@
 "use client";
 
-export { COMMUNITY_PREFIX } from "@/lib/community-shared";
-
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { submissionToNode } from "@/lib/community-shared";
-import { NODES, type VibeNode } from "@/lib/nodes";
+import type { CityId } from "@/lib/cities";
+import { currentCity } from "@/lib/city";
+import { spotFromRow, type SpotRow, type VibeNode } from "@/lib/nodes";
 import {
   getSupabase,
   PULSE_WINDOW_MS,
@@ -14,7 +13,6 @@ import {
   type PulseKind,
   type SpotEvent,
   type SpotStats,
-  type SpotSubmission,
 } from "@/lib/supabase";
 
 export type Community = {
@@ -25,7 +23,7 @@ export type Community = {
   pulses: Record<string, Partial<Record<PulseKind, number>>>;
   here: Record<string, number>;
   eventsToday: Record<string, SpotEvent[]>;
-  /** Approved "Drop a spot" submissions, as map nodes. */
+  /** Admin-vetted spots in every city. */
   spots: VibeNode[];
 };
 
@@ -63,7 +61,7 @@ async function load() {
       .eq("status", "approved")
       .gte("starts_at", dayStart.toISOString())
       .lt("starts_at", dayEnd.toISOString()),
-    supabase.from("spot_submissions").select("*").eq("status", "approved"),
+    supabase.from("spots").select("*"),
   ]);
 
   const next: Community = { ...EMPTY, ready: true, version: state.version + 1 };
@@ -74,7 +72,7 @@ async function load() {
   }
   for (const h of (here.data ?? []) as { spot_id: string; n: number }[]) next.here[h.spot_id] = Number(h.n);
   for (const e of (events.data ?? []) as SpotEvent[]) (next.eventsToday[e.spot_id] ??= []).push(e);
-  next.spots = ((spots.data ?? []) as SpotSubmission[]).map(submissionToNode);
+  next.spots = ((spots.data ?? []) as SpotRow[]).map(spotFromRow);
 
   state = next;
   listeners.forEach((l) => l());
@@ -94,7 +92,7 @@ function start() {
 
   load();
   const channel = supabase.channel("community");
-  for (const table of ["checkins", "pulses", "presence", "events", "spot_submissions"]) {
+  for (const table of ["checkins", "pulses", "presence", "events", "spots"]) {
     channel.on("postgres_changes", { event: "*", schema: "public", table }, refreshCommunity);
   }
   channel.subscribe();
@@ -113,19 +111,34 @@ export function useCommunity() {
   return useSyncExternalStore(subscribe, () => state, () => EMPTY);
 }
 
-/** Hand-picked spots plus approved community submissions. */
-export function useAllSpots() {
+/** Vetted spots in one city. */
+export function useVettedSpots(city: CityId | null | undefined) {
   const { spots } = useCommunity();
-  const [all, setAll] = useState<{ from: VibeNode[]; value: VibeNode[] }>({ from: [], value: NODES });
-  if (all.from !== spots) {
-    const seen = new Set(NODES.map((n) => n.placeId));
-    setAll({ from: spots, value: [...NODES, ...spots.filter((s) => !seen.has(s.placeId))] });
+  const [memo, setMemo] = useState<{ from: VibeNode[]; city: unknown; value: VibeNode[] }>({
+    from: [],
+    city: null,
+    value: [],
+  });
+  if (memo.from !== spots || memo.city !== city) {
+    setMemo({ from: spots, city, value: spots.filter((s) => s.city === city) });
   }
-  return all.value;
+  return memo.value;
 }
 
-export function findCommunitySpot(id: string) {
+export function findVettedSpot(id: string) {
   return state.spots.find((s) => s.id === id);
+}
+
+/** Admin only (enforced by row-level security): vet or update a spot. */
+export async function saveVettedSpot(row: SpotRow) {
+  friendly((await client().from("spots").upsert({ ...row, updated_at: new Date().toISOString() })).error);
+  refreshCommunity();
+}
+
+/** Admin only: take a spot off the vetted list. */
+export async function unvetSpot(placeId: string) {
+  friendly((await client().from("spots").delete().eq("place_id", placeId)).error);
+  refreshCommunity();
 }
 
 // --- Per-spot feed (drawer) ------------------------------------------------
@@ -194,16 +207,18 @@ function friendly(error: { message: string } | null) {
   throw new Error(error.message.replace(/^.*?: /, ""));
 }
 
+const city = () => currentCity()?.id ?? null;
+
 export async function sendPulse(spotId: string, kind: PulseKind) {
-  friendly((await client().from("pulses").insert({ spot_id: spotId, kind })).error);
+  friendly((await client().from("pulses").insert({ spot_id: spotId, kind, city: city() })).error);
   refreshCommunity();
 }
 
 export async function submitCheckin(
   spotId: string,
-  checkin: Pick<Checkin, "wifi" | "outlets" | "noise" | "parking" | "note">,
+  checkin: Partial<Pick<Checkin, "wifi" | "food" | "drinks" | "ambience" | "outlets" | "noise" | "parking" | "note">>,
 ) {
-  friendly((await client().from("checkins").insert({ spot_id: spotId, ...checkin })).error);
+  friendly((await client().from("checkins").insert({ spot_id: spotId, ...checkin, city: city() })).error);
   refreshCommunity();
 }
 
@@ -211,7 +226,7 @@ export async function setHere(
   spotId: string,
   presence: Pick<Presence, "status" | "open_to_chat" | "show_name">,
 ) {
-  friendly((await client().from("presence").insert({ spot_id: spotId, ...presence })).error);
+  friendly((await client().from("presence").insert({ spot_id: spotId, ...presence, city: city() })).error);
   refreshCommunity();
 }
 
@@ -224,6 +239,6 @@ export async function submitEvent(
   spotId: string,
   event: Pick<SpotEvent, "title" | "url" | "starts_at" | "ends_at">,
 ) {
-  friendly((await client().from("events").insert({ spot_id: spotId, ...event })).error);
+  friendly((await client().from("events").insert({ spot_id: spotId, ...event, city: city() })).error);
   refreshCommunity();
 }

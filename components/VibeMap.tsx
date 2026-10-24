@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { APIProvider, Circle, Map, useMap } from "@vis.gl/react-google-maps";
 import { emojisForCafe, useCollections } from "@/lib/collections";
 import { METERS_PER_MILE } from "@/lib/geo";
-import { useAllSpots, useCommunity } from "@/lib/community";
+import type { City } from "@/lib/cities";
+import { useCommunity, useVettedSpots } from "@/lib/community";
 import type { VibeNode } from "@/lib/nodes";
 import { useTheme } from "@/lib/theme";
 import CafeMarker from "./CafeMarker";
@@ -90,8 +91,6 @@ const LIGHT_STYLE: google.maps.MapTypeStyle[] = [
 ];
 
 // Inner Loop, where most spots are. Outliers (e.g. Sugar Land) are a pan away.
-const DEFAULT_CENTER = { lat: 29.742, lng: -95.39 };
-const DEFAULT_ZOOM = 13;
 const LABEL_ZOOM = 15; // full labels at/after this zoom
 const CLUSTER_MAX_ZOOM = 13; // merge overlapping spots below/at this zoom
 const CLUSTER_PX = 56;
@@ -126,6 +125,7 @@ function cluster(nodes: VibeNode[], zoom: number): Cluster[] {
 }
 
 export default function VibeMap(props: {
+  city: City;
   apiKey: string;
   selected: VibeNode | null;
   visibleIds: string[] | null;
@@ -134,7 +134,7 @@ export default function VibeMap(props: {
 }) {
   const { theme } = useTheme();
   const pickedIds = props.match?.picks.map((p) => p.id) ?? [];
-  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const [zoom, setZoom] = useState(props.city.zoom);
   const [showGoogle, setShowGoogle] = useState(true);
   const [googlePaused, setGooglePaused] = useState(false);
   const pauseGoogle = useCallback(() => setGooglePaused(true), []);
@@ -145,8 +145,8 @@ export default function VibeMap(props: {
         <Map
           styles={theme === "dark" ? DARK_STYLE : LIGHT_STYLE}
           backgroundColor={theme === "dark" ? "#0b0e16" : "#eef1f6"}
-          defaultCenter={DEFAULT_CENTER}
-          defaultZoom={DEFAULT_ZOOM}
+          defaultCenter={props.city.center}
+          defaultZoom={props.city.zoom}
           onZoomChanged={(e) => setZoom(Math.round(e.detail.zoom))}
           gestureHandling="greedy"
           clickableIcons={false}
@@ -304,12 +304,14 @@ function GoogleLayer({
 }
 
 function Markers({
+  city,
   selected,
   visibleIds,
   onSelect,
   zoom,
   pickedIds,
 }: {
+  city: City;
   pickedIds: string[];
   selected: VibeNode | null;
   visibleIds: string[] | null;
@@ -319,7 +321,7 @@ function Markers({
   const map = useMap();
   const { collections } = useCollections();
   const { here, eventsToday } = useCommunity();
-  const spots = useAllSpots();
+  const spots = useVettedSpots(city.id);
   const selectedId = selected?.id ?? null;
 
   const clusters = useMemo(

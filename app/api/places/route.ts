@@ -1,5 +1,5 @@
 import { nearbySpots, QuotaError } from "@/lib/places";
-import { getAllSpots } from "@/lib/spots-server";
+import { getVettedSpots } from "@/lib/spots-server";
 
 // GET /api/places?lat=..&lng=..&radiusMi=..  → unvetted Google spots near a point
 export async function GET(request: Request) {
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const [spots, vetted] = await Promise.all([nearbySpots(lat, lng, radiusMi), getAllSpots()]);
+    const [spots, vetted] = await Promise.all([nearbySpots(lat, lng, radiusMi), getVettedSpots()]);
     const vettedIds = new Set(vetted.map((v) => v.placeId));
     return Response.json({ spots: spots.filter((s) => !vettedIds.has(s.placeId)) });
   } catch (err) {

@@ -1,7 +1,7 @@
 import "server-only";
 
-import { COMMUNITY_PREFIX, submissionToNode } from "@/lib/community-shared";
-import { NODES, type VibeNode } from "@/lib/nodes";
+import type { City, CityId } from "@/lib/cities";
+import { spotFromRow, type SpotRow, type VibeNode } from "@/lib/nodes";
 import {
   PULSE_KINDS,
   PULSE_WINDOW_MS,
@@ -9,31 +9,22 @@ import {
   type Checkin,
   type PulseKind,
   type SpotEvent,
-  type SpotSubmission,
 } from "@/lib/supabase";
 
-let approvedCache: { at: number; spots: VibeNode[] } | null = null;
+let vettedCache: { at: number; spots: VibeNode[] } | null = null;
 
-/** Hand-picked spots + approved community submissions (cached for a minute). */
-export async function getAllSpots(): Promise<VibeNode[]> {
-  if (!approvedCache || Date.now() - approvedCache.at > 60_000) {
+/** Admin-vetted spots (all cities, or one), cached for a minute. */
+export async function getVettedSpots(city?: CityId): Promise<VibeNode[]> {
+  if (!vettedCache || Date.now() - vettedCache.at > 60_000) {
     const supabase = serverSupabase();
-    let spots: VibeNode[] = [];
-    if (supabase) {
-      const { data } = await supabase.from("spot_submissions").select("*").eq("status", "approved");
-      const seen = new Set(NODES.map((n) => n.placeId));
-      spots = ((data ?? []) as SpotSubmission[])
-        .map(submissionToNode)
-        .filter((s) => !seen.has(s.placeId));
-    }
-    approvedCache = { at: Date.now(), spots };
+    const { data } = supabase ? await supabase.from("spots").select("*") : { data: [] };
+    vettedCache = { at: Date.now(), spots: ((data ?? []) as SpotRow[]).map(spotFromRow) };
   }
-  return [...NODES, ...approvedCache.spots];
+  return city ? vettedCache.spots.filter((s) => s.city === city) : vettedCache.spots;
 }
 
-export async function findSpot(id: string) {
-  if (!id.startsWith(COMMUNITY_PREFIX)) return NODES.find((n) => n.id === id);
-  return (await getAllSpots()).find((n) => n.id === id);
+export async function findVettedSpot(placeId: string) {
+  return (await getVettedSpots()).find((s) => s.placeId === placeId);
 }
 
 const OUTLETS = { everywhere: "outlets everywhere", limited: "limited outlets", scarce: "outlets scarce" };
@@ -51,7 +42,7 @@ function ago(iso: string) {
  * Recent community reports for a spot, formatted for the chat's system prompt.
  * Returns "" when there's nothing (or Supabase isn't configured).
  */
-export async function communityContext(spotId: string): Promise<string> {
+export async function communityContext(spotId: string, city: City): Promise<string> {
   const supabase = serverSupabase();
   if (!supabase) return "";
 
@@ -64,7 +55,7 @@ export async function communityContext(spotId: string): Promise<string> {
     supabase.from("pulses").select("kind").eq("spot_id", spotId).gte("created_at", since),
     supabase
       .from("checkins")
-      .select("wifi, outlets, noise, parking, note, created_at")
+      .select("wifi, food, drinks, ambience, outlets, noise, parking, note, created_at")
       .eq("spot_id", spotId)
       .gte("created_at", twoWeeks)
       .order("created_at", { ascending: false })
@@ -94,6 +85,9 @@ export async function communityContext(spotId: string): Promise<string> {
   for (const c of (checkins.data ?? []) as Checkin[]) {
     const bits = [
       c.wifi != null && `Wi-Fi ${c.wifi}/5`,
+      c.food != null && `food ${c.food}/5`,
+      c.drinks != null && `drinks ${c.drinks}/5`,
+      c.ambience != null && `ambience ${c.ambience}/5`,
       c.outlets && OUTLETS[c.outlets],
       c.noise && NOISE[c.noise],
       c.parking && PARKING[c.parking],
@@ -104,7 +98,7 @@ export async function communityContext(spotId: string): Promise<string> {
 
   for (const e of (events.data ?? []) as Pick<SpotEvent, "title" | "starts_at">[]) {
     const time = new Date(e.starts_at).toLocaleTimeString("en-US", {
-      timeZone: "America/Chicago",
+      timeZone: city.timeZone,
       hour: "numeric",
       minute: "2-digit",
     });
@@ -129,12 +123,18 @@ export async function communityBriefs(): Promise<Record<string, string>> {
     spot_id: string;
     checkins: number;
     wifi_avg: number | null;
+    food_avg: number | null;
+    drinks_avg: number | null;
+    ambience_avg: number | null;
     outlets: keyof typeof OUTLETS | null;
     noise: keyof typeof NOISE | null;
   }[]) {
     (briefs[s.spot_id] ??= []).push(
       [
         s.wifi_avg != null && `Wi-Fi ${s.wifi_avg}/5`,
+        s.food_avg != null && `food ${s.food_avg}/5`,
+        s.drinks_avg != null && `drinks ${s.drinks_avg}/5`,
+        s.ambience_avg != null && `ambience ${s.ambience_avg}/5`,
         s.outlets && OUTLETS[s.outlets],
         s.noise && NOISE[s.noise],
         `${s.checkins} check-ins`,

@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { CityId, FieldId } from "@/lib/cities";
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -31,13 +32,24 @@ export function serverSupabase(accessToken?: string): SupabaseClient | null {
 
 // --- Row shapes (mirrors supabase/migrations/0001_community.sql) ----------
 
-export type Profile = { id: string; display_name: string | null; handle: string | null };
+export type Profile = {
+  id: string;
+  display_name: string | null;
+  handle: string | null;
+  city: CityId | null;
+  field: FieldId | null;
+  interests: string[];
+  is_admin: boolean;
+};
 
 export type Checkin = {
   id: string;
   spot_id: string;
   user_id: string;
   wifi: number | null;
+  food: number | null;
+  drinks: number | null;
+  ambience: number | null;
   outlets: "everywhere" | "limited" | "scarce" | null;
   noise: "quiet" | "buzz" | "loud" | null;
   parking: "easy" | "street" | "paid" | null;
@@ -85,28 +97,13 @@ export type SpotStats = {
   checkins: number;
   wifi_avg: number | null;
   wifi_count: number;
+  food_avg: number | null;
+  drinks_avg: number | null;
+  ambience_avg: number | null;
   outlets: Checkin["outlets"];
   noise: Checkin["noise"];
   parking: Checkin["parking"];
   last_at: string;
-};
-
-export type SpotSubmission = {
-  id: string;
-  place_id: string;
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-  kind: "cafe" | "library";
-  neighborhood: string | null;
-  take: string;
-  demographic: string | null;
-  tags: string[];
-  crowd: string | null;
-  color: string | null;
-  credit: string | null;
-  status: "pending" | "approved" | "rejected";
 };
 
 export const PULSE_WINDOW_MS = 3 * 60 * 60 * 1000;

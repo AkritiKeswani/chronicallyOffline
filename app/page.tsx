@@ -1,5 +1,5 @@
-import HoustonVibeApp from "@/components/HoustonVibeApp";
+import OfflineApp from "@/components/OfflineApp";
 
 export default function Home() {
-  return <HoustonVibeApp />;
+  return <OfflineApp />;
 }

@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { ChevronDown, Loader2, LocateFixed, Navigation, Search, Sparkles, X } from "lucide-react";
 import type { MatchResponse } from "@/app/api/match/route";
 import { getPersona } from "@/lib/auth";
+import type { City } from "@/lib/cities";
 import type { VibeNode } from "@/lib/nodes";
 
 const DISTANCES = [1, 3, 5, 10, 25];
@@ -19,12 +20,14 @@ function readWelcomeDismissed() {
 }
 
 export default function MatchBar({
+  city,
   match,
   onMatch,
   onSelect,
   drawerOpen = false,
 }: {
   drawerOpen?: boolean;
+  city: City;
   match: MatchResponse | null;
   onMatch: (match: MatchResponse | null) => void;
   onSelect: (node: VibeNode) => void;
@@ -55,7 +58,7 @@ export default function MatchBar({
     welcomeListeners.forEach((l) => l());
   }
 
-  const whereLabel = useMe ? "Near me" : place.trim() ? `Near ${place.trim()}` : "Anywhere in Houston";
+  const whereLabel = useMe ? "Near me" : place.trim() ? `Near ${place.trim()}` : `Anywhere in ${city.name}`;
 
   async function locate(): Promise<{ lat: number; lng: number }> {
     if (!("geolocation" in navigator)) throw new Error("Your browser doesn't support location");
@@ -85,7 +88,7 @@ export default function MatchBar({
       const res = await fetch("/api/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ need, where, radiusMi, persona: getPersona() }),
+        body: JSON.stringify({ need, where, radiusMi, persona: getPersona(), cityId: city.id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Search failed");
@@ -211,7 +214,7 @@ export default function MatchBar({
         {!welcomeDismissed && !match && (
           <div className="rounded-2xl border border-line bg-surface p-4 text-sm shadow-lg backdrop-blur-xl">
             <div className="flex items-start justify-between gap-3">
-              <p className="font-semibold text-fg">Find a spot in Houston to work from.</p>
+              <p className="font-semibold text-fg">Find your spot in {city.name}.</p>
               <button onClick={dismissWelcome} aria-label="Dismiss" className="text-muted hover:text-fg">
                 <X size={15} />
               </button>

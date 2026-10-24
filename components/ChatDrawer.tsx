@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Loader2, MapPin, Send, Star, Users, X } from "lucide-react";
 import { getPersona } from "@/lib/auth";
+import { currentCity } from "@/lib/city";
 import { useCommunity } from "@/lib/community";
 import { googleMapsUrl, type VibeNode } from "@/lib/nodes";
 import { readable } from "@/lib/theme";
 import CommunityPanel, { QuickPulses, WorkabilitySummary } from "./CommunityPanel";
 import NoteBox from "./NoteBox";
 import SaveMenu from "./SaveMenu";
+import VetPanel from "./VetPanel";
 
 type Message = {
   role: "user" | "model";
@@ -56,6 +58,7 @@ export default function ChatDrawer({
           nodeId: node.id,
           messages: next.map(({ role, text }) => ({ role, text })),
           persona: getPersona(),
+          cityId: currentCity()?.id,
         }),
       });
       const data = await res.json();
@@ -103,7 +106,7 @@ export default function ChatDrawer({
           ) : (
             <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
               <span className="rounded-full border border-dashed border-line-strong px-2 py-0.5">
-                Not vetted yet · from Google Maps
+                Not vetted · from Google Maps
               </span>
               {node.rating != null && (
                 <span className="flex items-center gap-1">
@@ -112,9 +115,6 @@ export default function ChatDrawer({
                 </span>
               )}
             </p>
-          )}
-          {node.curatedBy && (
-            <p className="mt-1 text-[11px] text-muted">Curated by {node.curatedBy}</p>
           )}
           <div className="mt-2 flex flex-wrap gap-1.5">
             {node.tags.map((t) => (
@@ -165,7 +165,8 @@ export default function ChatDrawer({
         </div>
       )}
 
-      <div className="border-b border-line px-5 py-3">
+      <div className="space-y-3 border-b border-line px-5 py-3">
+        <VetPanel node={node} />
         <NoteBox node={node} />
       </div>
 
