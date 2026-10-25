@@ -12,7 +12,9 @@ import AccountMenu from "./AccountMenu";
 import ChatDrawer from "./ChatDrawer";
 import CityPicker, { CitySwitcher } from "./CityPicker";
 import CollectionsPanel from "./CollectionsPanel";
+import LeaderboardPage from "./LeaderboardPage";
 import MatchBar from "./MatchBar";
+import ProfilePage from "./ProfilePage";
 import ProfileSetup from "./ProfileSetup";
 import RadarGrid from "./RadarGrid";
 import VibeMap from "./VibeMap";
@@ -30,6 +32,8 @@ export default function OfflineApp() {
   const city = useCity();
   const auth = useAuth();
   const [view, setView] = useState<"map" | "radar">(hasMapsKey ? "map" : "radar");
+  const [page, setPage] = useState<"map" | "leaderboard" | "profile">("map");
+  const [profileId, setProfileId] = useState<string | undefined>(undefined);
   const [selected, setSelected] = useState<VibeNode | null>(null);
   const [listsOpen, setListsOpen] = useState(false);
   const [filterId, setFilterId] = useState<string | null>(null);
@@ -85,6 +89,22 @@ export default function OfflineApp() {
         </div>
 
         <div className="pointer-events-auto flex flex-col items-end gap-2 sm:flex-row sm:items-start">
+          <nav className="flex items-center gap-1 rounded-xl border border-line bg-surface p-1 shadow-sm backdrop-blur">
+            {(["map", "leaderboard", "profile"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => {
+                  setPage(p);
+                  setProfileId(undefined);
+                }}
+                className={`rounded-lg px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] ${
+                  page === p ? "bg-invert text-invert-fg" : "text-muted hover:text-fg"
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </nav>
           <AccountMenu />
           <div className="flex rounded-xl border border-line bg-surface p-1 shadow-sm backdrop-blur">
             {THEME_OPTIONS.map(({ value, label, Icon }) => (
@@ -156,6 +176,23 @@ export default function OfflineApp() {
         )}
       </main>
 
+      {page !== "map" && (
+        <div className="absolute inset-0 z-[5] overflow-y-auto bg-bg">
+          {page === "leaderboard" ? (
+            <LeaderboardPage
+              city={city}
+              onOpenProfile={(id) => {
+                setProfileId(id);
+                setPage("profile");
+              }}
+            />
+          ) : (
+            <ProfilePage key={profileId ?? "me"} userId={profileId} />
+          )}
+        </div>
+      )}
+
+      {page === "map" && (
       <MatchBar
         city={city}
         match={match}
@@ -163,8 +200,9 @@ export default function OfflineApp() {
         onSelect={setSelected}
         drawerOpen={Boolean(selected)}
       />
+      )}
 
-      {selected && <ChatDrawer key={selected.id} node={selected} onClose={() => setSelected(null)} />}
+      {page === "map" && selected && <ChatDrawer key={selected.id} node={selected} onClose={() => setSelected(null)} />}
 
       {needsProfile && <ProfileSetup />}
     </div>

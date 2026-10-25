@@ -46,6 +46,7 @@ export type Checkin = {
   id: string;
   spot_id: string;
   user_id: string;
+  overall: number | null;
   wifi: number | null;
   food: number | null;
   drinks: number | null;
@@ -54,8 +55,23 @@ export type Checkin = {
   noise: "quiet" | "buzz" | "loud" | null;
   parking: "easy" | "street" | "paid" | null;
   note: string | null;
+  spot_name: string | null;
+  spot_area: string | null;
+  city: CityId | null;
   created_at: string;
   profiles?: Pick<Profile, "display_name" | "handle"> | null;
+};
+
+/** Row of the `leaderboard` view. Score: review = 3, note = 1, pulse = 1. */
+export type LeaderRow = {
+  id: string;
+  handle: string;
+  display_name: string | null;
+  city: CityId | null;
+  reviews: number;
+  notes: number;
+  pulses: number;
+  score: number;
 };
 
 export const PULSE_KINDS = {
@@ -95,6 +111,8 @@ export type SpotEvent = {
 export type SpotStats = {
   spot_id: string;
   checkins: number;
+  overall_avg: number | null;
+  overall_count: number;
   wifi_avg: number | null;
   wifi_count: number;
   food_avg: number | null;

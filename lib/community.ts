@@ -215,10 +215,19 @@ export async function sendPulse(spotId: string, kind: PulseKind) {
 }
 
 export async function submitCheckin(
-  spotId: string,
-  checkin: Partial<Pick<Checkin, "wifi" | "food" | "drinks" | "ambience" | "outlets" | "noise" | "parking" | "note">>,
+  node: VibeNode,
+  checkin: Partial<
+    Pick<Checkin, "overall" | "wifi" | "food" | "drinks" | "ambience" | "outlets" | "noise" | "parking" | "note">
+  >,
 ) {
-  friendly((await client().from("checkins").insert({ spot_id: spotId, ...checkin, city: city() })).error);
+  const area = node.vetted ? node.neighborhood : node.address.split(",").slice(-3, -2)[0]?.trim();
+  friendly(
+    (
+      await client()
+        .from("checkins")
+        .insert({ spot_id: node.id, ...checkin, city: city(), spot_name: node.name, spot_area: area || null })
+    ).error,
+  );
   refreshCommunity();
 }
 

@@ -41,6 +41,12 @@ export function WorkabilitySummary({ spotId }: { spotId: string }) {
     <div className="space-y-1.5 text-xs">
       {s ? (
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-fg">
+          {s.overall_avg != null && (
+            <span className="mr-1 font-serif text-2xl leading-none text-sky-500">
+              {s.overall_avg}
+              <span className="ml-0.5 font-sans text-[10px] text-muted">/10 · {s.overall_count}</span>
+            </span>
+          )}
           {s.wifi_avg != null && (
             <span className="flex items-center gap-1">
               <Wifi size={12} /> {s.wifi_avg}/5
@@ -166,6 +172,7 @@ export default function CommunityPanel({ node }: { node: VibeNode }) {
   const [showName, setShowName] = useState(false);
 
   // Check-in
+  const [overall, setOverall] = useState<number | null>(null);
   const [scores, setScores] = useState<Record<Score, number | null>>(NO_SCORES);
   const [outlets, setOutlets] = useState<Checkin["outlets"]>(null);
   const [noise, setNoise] = useState<Checkin["noise"]>(null);
@@ -192,7 +199,7 @@ export default function CommunityPanel({ node }: { node: VibeNode }) {
   }
 
   const signedIn = Boolean(auth.user);
-  const canCheckIn = Object.values(scores).some((v) => v != null) || outlets || noise || parking || note.trim();
+  const canCheckIn = overall != null || Object.values(scores).some((v) => v != null) || outlets || noise || parking || note.trim();
 
   return (
     <div className="space-y-6 text-sm">
@@ -279,6 +286,27 @@ export default function CommunityPanel({ node }: { node: VibeNode }) {
       {signedIn && (
         <Section title="Rate this spot — the next person sees it">
           <div className="space-y-2 rounded-lg border border-line p-3">
+            <div>
+              <div className="mb-1 flex items-baseline justify-between">
+                <span className="text-[11px] font-semibold text-fg">Overall</span>
+                <span className="font-serif text-xl leading-none text-fg">{overall ?? "–"}<span className="text-xs text-muted">/10</span></span>
+              </div>
+              <div className="grid grid-cols-10 gap-1">
+                {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setOverall(overall === n ? null : n)}
+                    className={`h-7 rounded-md border text-[11px] ${
+                      overall != null && n <= overall ? "border-sky-500 bg-sky-500 text-white" : "border-line text-fg/80 hover:bg-fg/5"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[10px] text-subtle">Optional detail below · a review earns 3 points</p>
+            </div>
             {(Object.entries(SCORES) as [Score, string][]).map(([key, label]) => (
               <div key={key} className="flex items-center gap-1">
                 <span className="w-16 text-[11px] text-muted">{label}</span>
@@ -312,8 +340,9 @@ export default function CommunityPanel({ node }: { node: VibeNode }) {
                 run(
                   "checkin",
                   async () => {
-                    await submitCheckin(node.id, { ...scores, outlets, noise, parking, note: note.trim() || null });
+                    await submitCheckin(node, { ...scores, overall, outlets, noise, parking, note: note.trim() || null });
                     setScores(NO_SCORES);
+                    setOverall(null);
                     setOutlets(null);
                     setNoise(null);
                     setParking(null);

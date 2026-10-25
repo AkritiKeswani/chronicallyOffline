@@ -35,7 +35,7 @@ export default function NoteBox({ node }: { node: VibeNode }) {
 
     setBusy(true);
     try {
-      await submitCheckin(node.id, { wifi: null, outlets: null, noise: null, parking: null, note });
+      await submitCheckin(node, { note });
       setText("");
       setMessage({ ok: true, text: `Posted — everyone sees it, and ${node.name}'s chat will too.` });
     } catch (err) {

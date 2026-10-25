@@ -166,3 +166,88 @@ group by spot_id;
 grant select on public.spot_stats to anon, authenticated;
 
 alter publication supabase_realtime add table public.spots;
+
+-- ---------------------------------------------------------------------------
+-- Overall 1–10 score, denormalized spot names (so profiles can list reviews
+-- of Google spots too), and activity scores / leaderboard.
+-- ---------------------------------------------------------------------------
+alter table public.checkins
+  add column if not exists overall smallint check (overall between 1 and 10),
+  add column if not exists spot_name text check (char_length(spot_name) <= 120),
+  add column if not exists spot_area text check (char_length(spot_area) <= 120);
+
+alter table public.checkins drop constraint if exists checkins_has_content;
+alter table public.checkins add constraint checkins_has_content check (
+  coalesce(overall::text, wifi::text, food::text, drinks::text, ambience::text,
+           outlets, noise, parking, nullif(trim(note), '')) is not null
+);
+
+create or replace function public.checkin_cooldown() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare
+  has_rating boolean := coalesce(new.overall::text, new.wifi::text, new.food::text, new.drinks::text,
+                                 new.ambience::text, new.outlets, new.noise, new.parking) is not null;
+begin
+  if has_rating and exists (
+    select 1 from public.checkins
+    where user_id = new.user_id and spot_id = new.spot_id
+      and coalesce(overall::text, wifi::text, food::text, drinks::text, ambience::text, outlets, noise, parking) is not null
+      and created_at > now() - interval '3 hours'
+  ) then
+    raise exception 'You already rated this spot in the last 3 hours';
+  end if;
+
+  if not has_rating and (
+    select count(*) from public.checkins
+    where user_id = new.user_id and spot_id = new.spot_id
+      and created_at > now() - interval '1 hour'
+  ) >= 10 then
+    raise exception 'That''s a lot of notes — try again in a bit';
+  end if;
+
+  return new;
+end $$;
+
+drop view if exists public.spot_stats;
+create view public.spot_stats with (security_invoker = true) as
+select
+  spot_id,
+  count(*) as checkins,
+  round(avg(overall)::numeric, 1) as overall_avg,
+  count(overall) as overall_count,
+  round(avg(wifi)::numeric, 1) as wifi_avg,
+  count(wifi) as wifi_count,
+  round(avg(food)::numeric, 1) as food_avg,
+  round(avg(drinks)::numeric, 1) as drinks_avg,
+  round(avg(ambience)::numeric, 1) as ambience_avg,
+  mode() within group (order by outlets) filter (where outlets is not null) as outlets,
+  mode() within group (order by noise) filter (where noise is not null) as noise,
+  mode() within group (order by parking) filter (where parking is not null) as parking,
+  max(created_at) as last_at
+from public.checkins
+where created_at > now() - interval '90 days'
+group by spot_id;
+grant select on public.spot_stats to anon, authenticated;
+
+-- Activity score: review with any rating = 3, note-only = 1, pulse = 1.
+create view public.leaderboard with (security_invoker = true) as
+with c as (
+  select user_id,
+    count(*) filter (where coalesce(overall::text, wifi::text, food::text, drinks::text, ambience::text,
+                                    outlets, noise, parking) is not null) as reviews,
+    count(*) filter (where coalesce(overall::text, wifi::text, food::text, drinks::text, ambience::text,
+                                    outlets, noise, parking) is null) as notes
+  from public.checkins group by user_id
+),
+p as (select user_id, count(*) as pulses from public.pulses group by user_id)
+select
+  pr.id, pr.handle, pr.display_name, pr.city,
+  coalesce(c.reviews, 0) as reviews,
+  coalesce(c.notes, 0) as notes,
+  coalesce(p.pulses, 0) as pulses,
+  coalesce(c.reviews, 0) * 3 + coalesce(c.notes, 0) + coalesce(p.pulses, 0) as score
+from public.profiles pr
+left join c on c.user_id = pr.id
+left join p on p.user_id = pr.id
+where pr.handle is not null;
+grant select on public.leaderboard to anon, authenticated;
