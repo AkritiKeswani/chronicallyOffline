@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Bookmark, Map as MapIcon, Monitor, Moon, Radar, Sun } from "lucide-react";
 import type { MatchResponse } from "@/app/api/match/route";
 import { useAuth } from "@/lib/auth";
-import { useCity } from "@/lib/city";
+import { clearCurrentCity, useCity } from "@/lib/city";
 import { useCollections } from "@/lib/collections";
 import type { VibeNode } from "@/lib/nodes";
 import { useTheme, type ThemePref } from "@/lib/theme";
@@ -63,12 +63,16 @@ export default function OfflineApp() {
     <div className="relative h-dvh w-full overflow-hidden bg-bg text-fg">
       <header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-4 p-4 sm:p-6">
         <div className="pointer-events-auto flex items-stretch gap-2">
-          <div className="rounded-2xl border border-line bg-surface px-4 py-3 shadow-sm backdrop-blur">
-            <h1 className="text-lg font-semibold tracking-tight">chronicallyOffline</h1>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-accent">
+          <button
+            onClick={clearCurrentCity}
+            title="Back to start"
+            className="rounded-2xl border border-line bg-surface px-4 py-3 text-left shadow-sm backdrop-blur"
+          >
+            <h1 className="font-serif text-xl leading-none tracking-tight">chronicallyOffline</h1>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-accent">
               What&rsquo;s happening in {city.short}
             </p>
-          </div>
+          </button>
           <CitySwitcher city={city} />
           <button
             onClick={() => setListsOpen((o) => !o)}

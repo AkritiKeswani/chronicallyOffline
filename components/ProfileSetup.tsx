@@ -84,7 +84,7 @@ export default function ProfileSetup({ onClose }: { onClose?: () => void }) {
           <div className="flex flex-wrap gap-1.5">
             {CITY_IDS.map((id) => (
               <button type="button" key={id} onClick={() => setCity(id)} className={chip(city === id)}>
-                {CITIES[id].emoji} {CITIES[id].name}
+                {CITIES[id].name}
               </button>
             ))}
           </div>
@@ -101,7 +101,7 @@ export default function ProfileSetup({ onClose }: { onClose?: () => void }) {
                 onClick={() => setField(id)}
                 className={`${chip(field === id)} disabled:cursor-not-allowed disabled:opacity-40`}
               >
-                {f.emoji} {f.label}
+                {f.label}
                 {!f.available && " · soon"}
               </button>
             ))}

@@ -5,7 +5,8 @@ export type City = {
   id: CityId;
   name: string;
   short: string;
-  emoji: string;
+  /** A few well-known neighborhoods, shown on the landing page. */
+  neighborhoods: string[];
   center: { lat: number; lng: number };
   zoom: number;
   timeZone: string;
@@ -18,7 +19,7 @@ export const CITIES: Record<CityId, City> = {
     id: "htx",
     name: "Houston",
     short: "HTX",
-    emoji: "🤠",
+    neighborhoods: ["Montrose", "The Heights", "EaDo", "Rice Village", "Midtown"],
     center: { lat: 29.742, lng: -95.39 },
     zoom: 13,
     timeZone: "America/Chicago",
@@ -28,7 +29,7 @@ export const CITIES: Record<CityId, City> = {
     id: "sf",
     name: "San Francisco",
     short: "SF",
-    emoji: "🌉",
+    neighborhoods: ["Mission", "SoMa", "Hayes Valley", "NoPa", "North Beach"],
     center: { lat: 37.7749, lng: -122.4194 },
     zoom: 13,
     timeZone: "America/Los_Angeles",
@@ -38,7 +39,7 @@ export const CITIES: Record<CityId, City> = {
     id: "nyc",
     name: "New York",
     short: "NYC",
-    emoji: "🗽",
+    neighborhoods: ["West Village", "SoHo", "Williamsburg", "Lower East Side", "Nolita"],
     center: { lat: 40.7282, lng: -73.9942 },
     zoom: 13,
     timeZone: "America/New_York",
@@ -48,7 +49,7 @@ export const CITIES: Record<CityId, City> = {
     id: "phl",
     name: "Philadelphia",
     short: "Philly",
-    emoji: "🔔",
+    neighborhoods: ["Fishtown", "Center City", "Rittenhouse", "Old City", "University City"],
     center: { lat: 39.9526, lng: -75.1652 },
     zoom: 13,
     timeZone: "America/New_York",
@@ -58,7 +59,7 @@ export const CITIES: Record<CityId, City> = {
     id: "ldn",
     name: "London",
     short: "London",
-    emoji: "💂",
+    neighborhoods: ["Shoreditch", "Soho", "Clerkenwell", "Peckham", "Marylebone"],
     center: { lat: 51.5136, lng: -0.0984 },
     zoom: 13,
     timeZone: "Europe/London",
@@ -81,10 +82,10 @@ export function cityNow(city: City) {
 }
 
 export const FIELDS = {
-  tech: { label: "Tech", emoji: "💻", available: true },
-  finance: { label: "Finance", emoji: "📈", available: false },
-  fashion: { label: "Fashion", emoji: "👗", available: false },
-  other: { label: "Something else", emoji: "✨", available: true },
+  tech: { label: "Tech", available: true },
+  finance: { label: "Finance", available: false },
+  fashion: { label: "Fashion", available: false },
+  other: { label: "Something else", available: true },
 } as const;
 export type FieldId = keyof typeof FIELDS;
 

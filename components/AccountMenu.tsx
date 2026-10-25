@@ -54,7 +54,7 @@ export default function AccountMenu() {
                 {p?.is_admin && <BadgeCheck size={14} className="text-accent" aria-label="Admin" />}
               </p>
               <p className="mt-0.5 text-muted">
-                {[p?.city && `${CITIES[p.city].emoji} ${CITIES[p.city].name}`, p?.field && FIELDS[p.field].label]
+                {[p?.city && CITIES[p.city].name, p?.field && FIELDS[p.field].label]
                   .filter(Boolean)
                   .join(" · ") || "Profile not set up"}
               </p>

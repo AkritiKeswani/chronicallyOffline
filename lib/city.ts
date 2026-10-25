@@ -29,6 +29,17 @@ export function setCurrentCity(city: CityId) {
   listeners.forEach((l) => l());
 }
 
+/** Back to the landing page. */
+export function clearCurrentCity() {
+  memory = null;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage blocked.
+  }
+  listeners.forEach((l) => l());
+}
+
 /** For non-React code (writes tag contributions with the city). */
 export function currentCity(): City | null {
   const id = typeof window === "undefined" ? null : read();
